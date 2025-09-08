@@ -1,8 +1,10 @@
 Hey guys, to use the yolo detector, which runs automatically FOR THE INGITION LAUNCH ONLY now you need to do the following:
 
 Install PIP
-	- sudo apt install python3-pip
+
+	sudo apt install python3-pip
 Install deps
+
 	# Remove the too-new version
 	python3 -m pip uninstall -y numpy
 	# Reinstall a version < 2.0 (safe with cv_bridge)
