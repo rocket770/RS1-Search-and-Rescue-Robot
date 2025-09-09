@@ -149,7 +149,8 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'conf_thres': 0.65,
             'iou_thres': 0.65
-        }]
+        }],
+        condition=IfCondition(LaunchConfiguration('yolo'))
     )
     ld.add_action(yolo_node)
     
