@@ -38,7 +38,12 @@ def generate_launch_description():
         description='Flag to launch Nav2'
     )
     ld.add_action(nav2_launch_arg)
-
+    yolo_arg = DeclareLaunchArgument(
+        'yolo',
+        default_value='false',  # 'true'/'false' as strings
+        description='Flag YOLO detector node'
+    )
+    ld.add_action(yolo_arg)
     # Load robot_description and start robot_state_publisher
     robot_description_content = ParameterValue(
         Command(['xacro ',
