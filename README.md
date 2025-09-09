@@ -21,3 +21,11 @@ Install deps
 	#for cpu
 	python3 -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
 
+Vis YOlo model
+	ros2 run rqt_image_view rqt_image_view
+
+
+TO run
+	colcon build --symlink-install
+ 	source ~/41068_ws/install/setup.bash
+	ros2 launch 41068_ignition_bringup 41068_ignition.launch.py nav2:=true rviz:=true
