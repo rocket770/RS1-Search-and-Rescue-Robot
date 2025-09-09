@@ -21,6 +21,8 @@ from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithP
 
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
+import time
+
 
 class YoloDetectorNode(Node):
     def __init__(self):
@@ -80,7 +82,10 @@ class YoloDetectorNode(Node):
 
         # Camera intrinsics
         if self.K is None or self.cam_frame is None:
-            self.get_logger().warn_throttle(5.0, "Waiting for CameraInfo (intrinsics not ready)")
+            self.get_logger().warn("Waiting for CameraInfo (intrinsics not ready)")
+            
+            #band aid fix, not even sure if this is a good idea in an async envrionment
+            time.sleep(2)
             return
 
         fx, fy, cx, cy = self.K

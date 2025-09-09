@@ -19,3 +19,6 @@ Install deps
 	#for cpu
 	python3 -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
 
+
+TO run
+	  ros2 launch 41068_ignition_bringup 41068_ignition.launch.py nav2:=true rviz:=true
