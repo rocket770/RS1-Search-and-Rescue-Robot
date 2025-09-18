@@ -1,0 +1,29 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="Frogv1">
+    <static>true</static>
+    <link name="frog_link">
+
+      <!-- Visual representation -->
+      <visual name="frog_visual">
+        <geometry>
+          <mesh>
+            <uri>model://frog/meshes/Frog/Frogv1.obj</uri>
+            <scale>0.01 0.01 0.01</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <!-- Collision geometry -->
+      <collision name="frog_collision">
+        <geometry>
+          <mesh>
+            <uri>model://frog/meshes/Frog/Frogv1.obj</uri>
+            <scale>0.01 0.01 0.01</scale>
+          </mesh>
+        </geometry>
+      </collision>
+
+    </link>
+  </model>
+</sdf>
