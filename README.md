@@ -29,3 +29,8 @@ TO run
 	colcon build --symlink-install
  	source ~/41068_ws/install/setup.bash
 	ros2 launch 41068_ignition_bringup 41068_ignition.launch.py nav2:=true rviz:=true
+
+
+
+FOR BT TEST USE FLAG
+	nav2_bt_test:=True
