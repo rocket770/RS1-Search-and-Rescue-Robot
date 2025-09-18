@@ -8,7 +8,7 @@
       <visual name="frog_visual">
         <geometry>
           <mesh>
-            <uri>model://frog/meshes/Frog/Frogv1.obj</uri>
+            <uri>file://meshes/duckv1/frogv1.obj</uri>
             <scale>0.01 0.01 0.01</scale>
           </mesh>
         </geometry>
@@ -18,7 +18,7 @@
       <collision name="frog_collision">
         <geometry>
           <mesh>
-            <uri>model://frog/meshes/Frog/Frogv1.obj</uri>
+            <uri>file://meshes/duckv1/frogv1.obj/uri>
             <scale>0.01 0.01 0.01</scale>
           </mesh>
         </geometry>

@@ -8,7 +8,7 @@
       <visual name="monkey_visual">
         <geometry>
           <mesh>
-            <uri>model://monkey/meshes/no_evil_monkey/monkeyv1.obj</uri>
+            <uri>file://meshes/no_evil_monkey/monkeyv1.obj</uri>
             <scale>0.01 0.01 0.01</scale>
           </mesh>
         </geometry>
@@ -18,7 +18,7 @@
       <collision name="monkey_collision">
         <geometry>
           <mesh>
-            <uri>model://monkey/meshes/no_evil_monkey/monkeyv1.obj</uri>
+            <uri>file://monkey/meshes/no_evil_monkey/monkeyv1.obj</uri>
             <scale>0.01 0.01 0.01</scale>
           </mesh>
         </geometry>
