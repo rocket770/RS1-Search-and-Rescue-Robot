@@ -43,6 +43,10 @@ Now install this package:
 * Source workspace (if you add this to your ~/.bashrc, then you don't need to do this each time)
   ```bash
   source ~/41068_ws/install/setup.bash
+
+FOR THIS REPO
+    source ~/RS1-Search-and-Rescue/install/setup.bash
+
   ```
 * Launch basic trees world. It might take a little while to load the first time you run it since it is downloading world model resources. If it crashes the first time, try running it again.
   ```bash
