@@ -1,0 +1,29 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="duckv1">
+    <static>true</static>
+    <link name="duck_link">
+
+      <!-- Visual representation -->
+      <visual name="duck_visual">
+        <geometry>
+          <mesh>
+            <uri>file://meshes/duckv1/duckv1.obj</uri>
+            <scale>0.01 0.01 0.01</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <!-- Collision geometry -->
+      <collision name="duck_collision">
+        <geometry>
+          <mesh>
+            <uri>file://meshes/duckv1/duckv1.obj</uri>
+            <scale>0.01 0.01 0.01</scale>
+          </mesh>
+        </geometry>
+      </collision>
+
+    </link>
+  </model>
+</sdf>

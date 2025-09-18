@@ -1,0 +1,29 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="bearv1">
+    <static>true</static>
+    <link name="bear_link">
+
+      <!-- Visual representation -->
+      <visual name="bear_visual">
+        <geometry>
+          <mesh>
+            <uri>model://bear/meshes/bearv1/bearv1.obj</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <!-- Collision geometry -->
+      <collision name="bear_collision">
+        <geometry>
+          <mesh>
+            <uri>model://bear/meshes/bearv1/bearv1.obj</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </collision>
+
+    </link>
+  </model>
+</sdf>
