@@ -252,24 +252,24 @@
 
     <!-- Duck -->
     <include>
-      <uri>model://duck</uri>
+      <uri>file://../models/Animal_Models/duck</uri>
       <name>duck</name>
       <pose>-10 6 0 0 0 0</pose>
     </include>
 
     <!-- Frog -->
-    <include>
-      <uri>model://frog</uri>
+    <!-- <include>
+      <uri>file://../models/Animal_Models/frog</uri>
       <name>frog</name>
       <pose>-10 7 0 0 0 0</pose>
-    </include>
+    </include> -->
 
     <!-- Monkey -->
-    <include>
-      <uri>model://monkey</uri>
+    <!-- <include>
+      <uri>file://../models/Animal_Models/monkey</uri>
       <name>monkey</name>
       <pose>-10 8 0 0 0 0</pose>
-    </include>
+    </include> -->
 
     <!-- Rocks -->
     <include>

@@ -8,7 +8,7 @@
       <visual name="duck_visual">
         <geometry>
           <mesh>
-            <uri>model://duck/meshes/duckv1/duckv1.obj</uri>
+            <uri>file://meshes/duckv1/duckv1.obj</uri>
             <scale>0.01 0.01 0.01</scale>
           </mesh>
         </geometry>
@@ -18,7 +18,7 @@
       <collision name="duck_collision">
         <geometry>
           <mesh>
-            <uri>model://duck/meshes/duckv1/duckv1.obj</uri>
+            <uri>file://meshes/duckv1/duckv1.obj</uri>
             <scale>0.01 0.01 0.01</scale>
           </mesh>
         </geometry>
