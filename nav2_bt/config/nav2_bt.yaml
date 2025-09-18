@@ -1,0 +1,15 @@
+bt_navigator:
+  ros__parameters:
+    use_sim_time: true
+    default_nav_to_pose_bt_xml: /$(find-pkg-share nav2_bt)/bt_xml/random_walk.xml
+    plugin_lib_names:
+      # Standard Nav2 nodes you need to navigate
+      - nav2_compute_path_to_pose_action_bt_node
+      - nav2_follow_path_action_bt_node
+      - nav2_goal_check_condition_bt_node
+      - nav2_rate_controller_bt_node
+      - nav2_distance_controller_bt_node
+      - nav2_recovery_node_bt_node
+      - nav2_wait_action_bt_node
+      # Your custom plugin lib (defined in CMakeLists)
+      - nav2_bt_plugins

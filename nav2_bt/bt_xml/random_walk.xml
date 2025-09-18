@@ -1,0 +1,15 @@
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <!-- Repeat forever -->
+    <Repeat num_cycles="-1">
+      <Sequence>
+        <!-- Write a random goal to {goal} -->
+        <RandomGoal frame_id="map" radius="6.0" goal="{goal}"/>
+        <!-- Navigate there -->
+        <NavigateToPose goal="{goal}"/>
+        <!-- Pause N seconds -->
+        <Wait wait_duration="3"/>
+      </Sequence>
+    </Repeat>
+  </BehaviorTree>
+</root>

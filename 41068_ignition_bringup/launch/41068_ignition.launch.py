@@ -44,6 +44,16 @@ def generate_launch_description():
         description='Flag YOLO detector node'
     )
     ld.add_action(yolo_arg)
+
+    # --- Nav2 BT test toggle ---
+    nav2_bt_test_arg = DeclareLaunchArgument(
+        'nav2_bt_test',
+        default_value='False',
+        description='Launch Nav2 using the nav2_bt random-walk tree'
+    )
+    ld.add_action(nav2_bt_test_arg)
+
+
     # Load robot_description and start robot_state_publisher
     robot_description_content = ParameterValue(
         Command(['xacro ',
@@ -133,6 +143,21 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('nav2'))
     )
     ld.add_action(nav2)
+
+    # Path to BT params from nav2_bt package
+    bt_pkg_share = FindPackageShare('nav2_bt')
+    bt_params = PathJoinSubstitution([bt_pkg_share, 'config', 'nav2_bt.yaml'])
+
+    nav2_bt_test_inc = IncludeLaunchDescription(
+        PathJoinSubstitution([pkg_path, 'launch', '41068_navigation.launch.py']),
+        launch_arguments={
+            'use_sim_time': use_sim_time,
+            'params_file': bt_params,   # <- points Nav2 to nav2_bt/config/nav2_bt.yaml
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('nav2_bt_test'))
+    )
+    ld.add_action(nav2_bt_test_inc)
+
     
     # --- YOLO detector node ---
         
