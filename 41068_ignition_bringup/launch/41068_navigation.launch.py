@@ -1,8 +1,9 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, GroupAction
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
-
+from launch_ros.actions import SetRemap
+from launch_ros.actions import Node
 
 def generate_launch_description():
 
@@ -33,12 +34,26 @@ def generate_launch_description():
         PathJoinSubstitution([FindPackageShare('nav2_bringup'), 'launch', 'navigation_launch.py']),
         launch_arguments={
             'use_sim_time': use_sim_time,
-            'params_file': PathJoinSubstitution([config_path, 'nav2_params.yaml'])
+            'params_file': PathJoinSubstitution([config_path, 'nav2_params.yaml']),
+            "slam": 'True'
         }.items()
     )
 
+    remapped_nav_stack = GroupAction([
+        # Send TF to the global topics
+        SetRemap(src='tf', dst='/tf'),
+        SetRemap(src='tf_static', dst='/tf_static'),
+        # Make sure laser resolves to the root scan topic
+        SetRemap(src='scan', dst='/scan'),
+        # (optional) map topic match (usually not needed, slam publishes /map already)
+        # SetRemap(src='map', dst='/map'),
+
+        slam,
+        
+        navigation,
+    ])
+
     ld.add_action(use_sim_time_launch_arg)
-    ld.add_action(slam)
-    ld.add_action(navigation)
+    ld.add_action(remapped_nav_stack)
 
     return ld

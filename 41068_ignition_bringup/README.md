@@ -51,6 +51,8 @@ Now install this package:
 * As above with SLAM and autonomous navigation
   ```bash
   ros2 launch 41068_ignition_bringup 41068_ignition.launch.py slam:=true nav2:=true rviz:=true
+  ros2 launch 41068_ignition_bringup 41068_ignition.launch.py rviz:=true goal_sender:=true
+
   ```
 * Change world with `world` argument. Must be the name of a `.sdf` file in `worlds`, but without file extension. Note this might also take a while the first time you run it since it is downloading extra model resources.
   ```bash
