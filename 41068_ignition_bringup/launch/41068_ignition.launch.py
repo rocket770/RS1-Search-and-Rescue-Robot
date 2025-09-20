@@ -39,6 +39,7 @@ def generate_launch_description():
         value_type=str
     )
 
+    husky_cfg = PathJoinSubstitution([config_path, 'husky'])
     husky_group = GroupAction([
         PushRosNamespace('husky'),
 
@@ -65,7 +66,7 @@ def generate_launch_description():
             executable='ekf_node',
             name='ekf',
             output='screen',
-            parameters=[PathJoinSubstitution([config_path, 'robot_localization.yaml']),
+            parameters=[PathJoinSubstitution([husky_cfg, 'robot_localization.yaml']),
                         {'use_sim_time': use_sim_time}],
             remappings=[('tf','/tf'), ('tf_static','/tf_static')]
         ),
@@ -123,7 +124,7 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {'use_sim_time': use_sim_time},
-                PathJoinSubstitution([config_path, 'slam_params.yaml'])
+                PathJoinSubstitution([husky_cfg, 'slam_params.yaml'])
             ],
             remappings=[
                 ('tf','/tf'), ('tf_static','/tf_static'),
@@ -141,18 +142,10 @@ def generate_launch_description():
         executable='create',
         output='screen',
         parameters=[{'use_sim_time': use_sim_time}],
-        arguments=['-topic', '/husky/robot_description', '-name', 'husky', '-z', '0.4'],  # <- was 'Husky'
+        arguments=['-topic', '/husky/robot_description', '-name', 'husky', '-z', '0.4'], 
     )
     ld.add_action(robot_spawner)
 
-
-    # gazebo_bridge = Node(
-    #     package='ros_ign_bridge',
-    #     executable='parameter_bridge',
-    #     parameters=[{'config_file': PathJoinSubstitution([config_path, 'gazebo_bridge.yaml']),
-    #                  'use_sim_time': use_sim_time}]
-    # )
-    # ld.add_action(gazebo_bridge)
 
     # RViz
     rviz_node = Node(
