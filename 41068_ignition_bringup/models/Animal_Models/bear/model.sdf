@@ -8,7 +8,7 @@
       <visual name="bear_visual">
         <geometry>
           <mesh>
-            <uri>model://bear/meshes/bearv1/bearv1.obj</uri>
+            <uri>package://41068_ignition_bringup/models/Animal_Models/bear/meshes/bearv1/bearv1.obj</uri>
             <scale>1 1 1</scale>
           </mesh>
         </geometry>
@@ -18,7 +18,7 @@
       <collision name="bear_collision">
         <geometry>
           <mesh>
-            <uri>model://bear/meshes/bearv1/bearv1.obj</uri>
+            <uri>package://41068_ignition_bringup/models/Animal_Models/bear/meshes/bearv1/bearv1.obj</uri>
             <scale>1 1 1</scale>
           </mesh>
         </geometry>

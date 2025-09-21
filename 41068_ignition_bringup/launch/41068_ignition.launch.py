@@ -2,11 +2,13 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.substitutions import (Command, LaunchConfiguration,
-                                  PathJoinSubstitution)
+                                  PathJoinSubstitution, PythonExpression,)
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import PathJoinSubstitution
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+
 
 
 def generate_launch_description():
@@ -71,7 +73,6 @@ def generate_launch_description():
     )
     ld.add_action(robot_localization_node)
 
-    # Start Gazebo to simulate the robot in the chosen world
     world_launch_arg = DeclareLaunchArgument(
         'world',
         default_value='simple_trees',
@@ -79,17 +80,34 @@ def generate_launch_description():
         choices=['simple_trees', 'large_demo']
     )
     ld.add_action(world_launch_arg)
+
+    # Build "<world>.sdf" as a quoted PythonExpression
+    world_filename = PythonExpression([
+        "'", LaunchConfiguration('world'), "'", " + '.sdf'"
+    ])
+
+    world_file = PathJoinSubstitution([
+        pkg_path,
+        'worlds',
+        world_filename
+    ])
+
     gazebo = IncludeLaunchDescription(
-        PathJoinSubstitution([FindPackageShare('ros_ign_gazebo'),
-                             'launch', 'ign_gazebo.launch.py']),
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('ros_ign_gazebo'),
+                'launch',
+                'ign_gazebo.launch.py'
+            ])
+        ),
         launch_arguments={
-            'ign_args': [PathJoinSubstitution([pkg_path,
-                                               'worlds',
-                                               [LaunchConfiguration('world'), '.sdf']]),
-                         ' -r']}.items()
+            # Quote the expanded path inside the expression, then append ' -r'
+            'ign_args': PythonExpression([
+                "'", world_file, "'", " + ' -r'"
+            ])
+        }.items()
     )
     ld.add_action(gazebo)
-
     # Spawn robot in Gazebo
     robot_spawner = Node(
         package='ros_ign_gazebo',
