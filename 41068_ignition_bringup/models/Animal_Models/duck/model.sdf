@@ -8,7 +8,7 @@
       <visual name="duck_visual">
         <geometry>
           <mesh>
-            <uri>file://meshes/duckv1/duckv1.obj</uri>
+            <uri>package://41068_ignition_bringup/models/Animal_Models/duck/meshes/duckv1/duckv1.obj</uri>
             <scale>0.01 0.01 0.01</scale>
           </mesh>
         </geometry>
@@ -18,7 +18,7 @@
       <collision name="duck_collision">
         <geometry>
           <mesh>
-            <uri>file://meshes/duckv1/duckv1.obj</uri>
+            <uri>package://41068_ignition_bringup/models/Animal_Models/duck/meshes/duckv1/duckv1.obj</uri>
             <scale>0.01 0.01 0.01</scale>
           </mesh>
         </geometry>
