@@ -47,6 +47,9 @@ Now install this package:
 FOR THIS REPO
     source ~/RS1-Search-and-Rescue/install/setup.bash
 
+
+  export LIBGL_ALWAYS_SOFTWARE=1
+
   ```
 * Launch basic trees world. It might take a little while to load the first time you run it since it is downloading world model resources. If it crashes the first time, try running it again.
   ```bash
