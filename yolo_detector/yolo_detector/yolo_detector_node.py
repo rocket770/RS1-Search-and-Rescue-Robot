@@ -3,6 +3,9 @@ import rclpy
 from rclpy.node import Node
 from rclpy.task import Future
 from rclpy.duration import Duration
+from rclpy.time import Time
+
+from builtin_interfaces.msg import Time as BuiltinTime
 
 import numpy as np
 import cv2
@@ -23,9 +26,6 @@ from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithP
 
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
-import time
-
-
 class YoloDetectorNode(Node):
     def __init__(self):
         super().__init__('yolo_detector')
@@ -36,7 +36,7 @@ class YoloDetectorNode(Node):
         self.declare_parameter('iou_thres', 0.5)
         self.declare_parameter('camera_frame', 'camera_optical_frame')
         self.declare_parameter('target_frame', 'map')
-        self.declare_parameter('depth_scale', 1.0)  # 0.001 if depth is mm
+        self.declare_parameter('depth_scale', 1.0)  # if depth is in m
 
         self.model_path  = self.get_parameter('model_path').value
         self.conf_thres  = self.get_parameter('conf_thres').value
@@ -45,7 +45,7 @@ class YoloDetectorNode(Node):
         self.target_frame= self.get_parameter('target_frame').value
         self.depth_scale = self.get_parameter('depth_scale').value
 
-        # Auto GPU then CPU fallback
+        # Auto GPU then CPU fallback, although i think this doesnt work
         self.device = 0 if torch.cuda.is_available() else "cpu"
         self.get_logger().info(f"Using device: {'CUDA:0' if self.device == 0 else 'CPU'}")
 
@@ -54,7 +54,7 @@ class YoloDetectorNode(Node):
         self.model.to(self.device)
 
         self.bridge = CvBridge()
-        self.K = None  # intrinsics (fx, fy, cx, cy)
+        self.K = None  # cam intrinsics (fx, fy, cx, cy)
 
         # TF buffer/listener
         self.tf_buffer = tf2_ros.Buffer()
@@ -84,16 +84,15 @@ class YoloDetectorNode(Node):
 
         temp_sub = self.create_subscription(CameraInfo, '/camera/camera_info', _caminfo_once, startup_qos)
 
-        timeout_sec = 10.0  # set to None to wait indefinitely
+        timeout_sec = None  # wait indefinitely
         rclpy.spin_until_future_complete(self, ready_future, timeout_sec=timeout_sec)
 
         self.destroy_subscription(temp_sub)
 
         if not ready_future.done():
-            self.get_logger().error("Timed out waiting for initial CameraInfo, shutting down.")
+            self.get_logger().error("Timed out waiting for initial CameraInfo :O shutting down.")
             raise RuntimeError("No CameraInfo received at startup")
         else:
-            # Seed intrinsics from the first message
             msg = self._startup_caminfo
             self.K = (msg.k[0], msg.k[4], msg.k[2], msg.k[5])  # fx, fy, cx, cy
             self.cam_frame = msg.header.frame_id
@@ -104,9 +103,9 @@ class YoloDetectorNode(Node):
 
         self._latest_caminfo = None
         self._logged_k = True  # already logged above
-        self._last_caminfo_warn = None  # for throttled warning in cb()
+        self._last_caminfo_warn = None  # for throttled warning in cb() 
 
-        # Keep only latest to avoid backlog
+        # Keep only latest to avoid backlog idk ifound this online
         caminfo_qos = QoSProfile(
             depth=1,
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -114,7 +113,7 @@ class YoloDetectorNode(Node):
         )
         self.create_subscription(CameraInfo, '/camera/camera_info', self._caminfo_cb, caminfo_qos)
 
-        # Timer to consume CameraInfo once per second and update self.K/self.cam_frame
+        # Timer to get CameraInfo once per second and update self.K/self.cam_frame
         self.create_timer(1.0, self._process_caminfo_1hz)
 
         sub_rgb   = message_filters.Subscriber(self, Image, '/camera/image',       qos_profile=reliable_qos)
@@ -136,11 +135,11 @@ class YoloDetectorNode(Node):
         if self._latest_caminfo is None:
             return
         msg = self._latest_caminfo
-        self.K = (msg.k[0], msg.k[4], msg.k[2], msg.k[5])  # fx, fy, cx, cy
+        self.K = (msg.k[0], msg.k[4], msg.k[2], msg.k[5])  # fx, fy, cx, cy i think
         self.cam_frame = msg.header.frame_id
 
     def cb(self, rgb_msg, depth_msg):
-        # Ensure intrinsics are available
+        # Ensure camera info is available so we can do the transform thingy into world cords
         if self.K is None:
             now = self.get_clock().now()
             if (self._last_caminfo_warn is None) or ((now - self._last_caminfo_warn) > Duration(seconds=5.0)):
@@ -156,14 +155,13 @@ class YoloDetectorNode(Node):
         if depth.dtype != np.float32:
             depth = depth.astype(np.float32) * self.depth_scale
 
-        # YOLO inference
         results = self.model.predict(
             source=color, conf=self.conf_thres, iou=self.iou_thres,
             verbose=False, device=self.device
         )
 
         det_array = Detection2DArray()
-        det_array.header = rgb_msg.header  # keep original stamp/frame
+        det_array.header = rgb_msg.header  # keep original stamp for the image
         annotated = color.copy()
 
         for r in results:
@@ -176,13 +174,34 @@ class YoloDetectorNode(Node):
                 x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().tolist()
                 u, v = (x1 + x2) / 2.0, (y1 + y2) / 2.0
 
-                # Build a Detection2D
+                # 1) Need valid depth or skip
+                d = self.get_depth_median(depth, int(u), int(v), k=5)
+                if d is None or not np.isfinite(d) or d <= 0.0:
+                    continue
+
+                # 2) Build pose in camera frame
+                Xc, Yc, Zc = self.pixel_to_3d(u, v, d, self.K)
+                ps = PoseStamped()
+                ps.header = rgb_msg.header
+                ps.header.frame_id = self.cam_frame
+                ps.pose.position.x = float(Xc)
+                ps.pose.position.y = float(Yc)
+                ps.pose.position.z = float(Zc)
+                ps.pose.orientation.w = 1.0
+
+                # 3) Transform to target frame; if it fails, skip detection
+                out = self._safe_transform_pose(ps)
+                if out is None:
+                    continue
+
+                # 4) Only now create and publish the detection
                 det = Detection2D()
                 det.header = rgb_msg.header
 
                 hyp = ObjectHypothesisWithPose()
                 hyp.hypothesis.class_id = names.get(cls_id, str(cls_id))
                 hyp.hypothesis.score = conf
+                hyp.pose.pose.position = out.pose.position
                 det.results.append(hyp)
 
                 bb = BoundingBox2D()
@@ -192,17 +211,16 @@ class YoloDetectorNode(Node):
 
                 det_array.detections.append(det)
 
-                # -draw box/label on the annotated image 
+                # draw only for published detections
                 x1_i, y1_i, x2_i, y2_i = map(int, (x1, y1, x2, y2))
                 cv2.rectangle(annotated, (x1_i, y1_i), (x2_i, y2_i), (0, 255, 0), 2)
                 label = f"{hyp.hypothesis.class_id} {conf:.2f}"
                 cv2.putText(annotated, label, (x1_i, max(0, y1_i - 5)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-        # Publish det results
+
         self.pub_det.publish(det_array)
 
-        # Then the image with the det info drawn on it
         img_msg = self.bridge.cv2_to_imgmsg(annotated, encoding="bgr8")
         img_msg.header = rgb_msg.header
         self.pub_image.publish(img_msg)
@@ -238,12 +256,46 @@ class YoloDetectorNode(Node):
             trans = self.tf_buffer.lookup_transform(
                 self.target_frame, self.cam_frame, rclpy.time.Time()
             )
-            out = tf2_geometry_msgs.do_transform_pose(ps, trans)
-            return out.position
+            out = tf2_geometry_msgs.do_transform_pose_stamped(ps, trans)
+            return out.pose.position
         except Exception as e:
             self.get_logger().warning(f"TF failed: {e}")
             return Point()
 
+
+    def _safe_transform_pose(self, ps: PoseStamped) -> PoseStamped | None:
+        """Transform ps to target_frame. If stamped time is ahead of TF,
+        fall back to the latest available transform (time=0) or a small backdated time."""
+        try:
+            return self.tf_buffer.transform(ps, self.target_frame, timeout=Duration(seconds=0.2))
+        except tf2_ros.ExtrapolationException as e:
+            # Future extrapolation: fall back to latest
+            self.get_logger().debug(f"Future extrapolation; retrying with latest TF: {e}")
+
+            # Option A: force 'latest' by zero stamp
+            ps_latest = PoseStamped()
+            ps_latest.header = ps.header
+            ps_latest.header.stamp = BuiltinTime(sec=0, nanosec=0)  # special 'latest' time for TF
+            ps_latest.pose = ps.pose
+            try:
+                return self.tf_buffer.transform(ps_latest, self.target_frame, timeout=Duration(seconds=0.2))
+            except Exception as e2:
+                # Option B: small backdate tolerance (e.g., 100 ms)
+                self.get_logger().debug(f"Retry with backdated stamp after latest also failed: {e2}")
+                try:
+                    original = Time.from_msg(ps.header.stamp)
+                    backdated = (original - Duration(seconds=0.1)).to_msg()
+                    ps_back = PoseStamped()
+                    ps_back.header = ps.header
+                    ps_back.header.stamp = backdated
+                    ps_back.pose = ps.pose
+                    return self.tf_buffer.transform(ps_back, self.target_frame, timeout=Duration(seconds=0.2))
+                except Exception as e3:
+                    self.get_logger().warning(f"TF transform still failing after fallbacks: {e3}")
+                    return None
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.TimeoutException) as e:
+            self.get_logger().warning(f"TF transform failed: {e}")
+            return None
 
 def main(args=None):
     rclpy.init(args=args)
@@ -254,7 +306,6 @@ def main(args=None):
         pass
     node.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == "__main__":
     main()
