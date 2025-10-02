@@ -1,14 +1,201 @@
+# from launch import LaunchDescription
+# from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+# from launch.conditions import IfCondition
+# from launch.substitutions import (Command, LaunchConfiguration,
+#                                   PathJoinSubstitution)
+# from launch_ros.actions import Node
+# from launch_ros.parameter_descriptions import ParameterValue
+# from launch_ros.substitutions import FindPackageShare
+# from launch.substitutions import PathJoinSubstitution
+
+
+# def generate_launch_description():
+
+#     ld = LaunchDescription()
+
+#     # Get paths to directories
+#     pkg_path = FindPackageShare('41068_ignition_bringup')
+#     config_path = PathJoinSubstitution([pkg_path,
+#                                        'config'])
+
+#     # Additional command line arguments
+#     use_sim_time_launch_arg = DeclareLaunchArgument(
+#         'use_sim_time',
+#         default_value='True',
+#         description='Flag to enable use_sim_time'
+#     )
+#     use_sim_time = LaunchConfiguration('use_sim_time')
+#     ld.add_action(use_sim_time_launch_arg)
+#     rviz_launch_arg = DeclareLaunchArgument(
+#         'rviz',
+#         default_value='False',
+#         description='Flag to launch RViz'
+#     )
+#     ld.add_action(rviz_launch_arg)
+#     nav2_launch_arg = DeclareLaunchArgument(
+#         'nav2',
+#         default_value='True',
+#         description='Flag to launch Nav2'
+#     )
+#     ld.add_action(nav2_launch_arg)
+#     yolo_arg = DeclareLaunchArgument(
+#         'yolo',
+#         default_value='false',  # 'true'/'false' as strings
+#         description='Flag YOLO detector node'
+#     )
+#     ld.add_action(yolo_arg)
+
+#     # --- Nav2 BT test toggle ---
+#     nav2_bt_test_arg = DeclareLaunchArgument(
+#         'nav2_bt_test',
+#         default_value='False',
+#         description='Launch Nav2 using the nav2_bt random-walk tree'
+#     )
+#     ld.add_action(nav2_bt_test_arg)
+
+
+#     # Load robot_description and start robot_state_publisher
+#     robot_description_content = ParameterValue(
+#         Command(['xacro ',
+#                  PathJoinSubstitution([pkg_path,
+#                                        'urdf',
+#                                        'husky.urdf.xacro'])]),
+#         value_type=str)
+#     robot_state_publisher_node = Node(package='robot_state_publisher',
+#                                       executable='robot_state_publisher',
+#                                       parameters=[{
+#                                           'robot_description': robot_description_content,
+#                                           'use_sim_time': use_sim_time
+#                                       }])
+#     ld.add_action(robot_state_publisher_node)
+
+#     # Publish odom -> base_link transform **using robot_localization**
+#     robot_localization_node = Node(
+#         package='robot_localization',
+#         executable='ekf_node',
+#         name='robot_localization',
+#         output='screen',
+#         parameters=[PathJoinSubstitution([config_path,
+#                                           'robot_localization.yaml']),
+#                     {'use_sim_time': use_sim_time}]
+#     )
+#     ld.add_action(robot_localization_node)
+
+#     # Start Gazebo to simulate the robot in the chosen world
+#     world_launch_arg = DeclareLaunchArgument(
+#         'world',
+#         default_value='simple_trees',
+#         description='Which world to load',
+#         choices=['simple_trees', 'large_demo']
+#     )
+#     ld.add_action(world_launch_arg)
+#     gazebo = IncludeLaunchDescription(
+#         PathJoinSubstitution([FindPackageShare('ros_ign_gazebo'),
+#                              'launch', 'ign_gazebo.launch.py']),
+#         launch_arguments={
+#             'ign_args': [PathJoinSubstitution([pkg_path,
+#                                                'worlds',
+#                                                [LaunchConfiguration('world'), '.sdf']]),
+#                          ' -r']}.items()
+#     )
+#     ld.add_action(gazebo)
+
+#     # Spawn robot in Gazebo
+#     robot_spawner = Node(
+#         package='ros_ign_gazebo',
+#         executable='create',
+#         output='screen',
+#         parameters=[{'use_sim_time': use_sim_time}],
+#         arguments=['-topic', '/robot_description', '-z', '0.4']
+#     )
+#     ld.add_action(robot_spawner)
+
+#     # Bridge topics between gazebo and ROS2
+#     gazebo_bridge = Node(
+#         package='ros_ign_bridge',
+#         executable='parameter_bridge',
+#         parameters=[{'config_file': PathJoinSubstitution([config_path,
+#                                                           'gazebo_bridge.yaml']),
+#                     'use_sim_time': use_sim_time}]
+#     )
+#     ld.add_action(gazebo_bridge)
+
+#     # rviz2 visualises data
+#     rviz_node = Node(
+#         package='rviz2',
+#         executable='rviz2',
+#         output='screen',
+#         parameters=[{'use_sim_time': use_sim_time}],
+#         arguments=['-d', PathJoinSubstitution([config_path,
+#                                                '41068.rviz'])],
+#         condition=IfCondition(LaunchConfiguration('rviz'))
+#     )
+#     ld.add_action(rviz_node)
+
+#     # Nav2 enables mapping and waypoint following
+#     nav2 = IncludeLaunchDescription(
+#         PathJoinSubstitution([pkg_path,
+#                               'launch',
+#                               '41068_navigation.launch.py']),
+#         launch_arguments={
+#             'use_sim_time': use_sim_time
+#         }.items(),
+#         condition=IfCondition(LaunchConfiguration('nav2'))
+#     )
+#     ld.add_action(nav2)
+
+#     # Path to BT params from nav2_bt package
+#     bt_pkg_share = FindPackageShare('nav2_bt')
+#     bt_params = PathJoinSubstitution([bt_pkg_share, 'config', 'nav2_bt.yaml'])
+
+#     nav2_bt_test_inc = IncludeLaunchDescription(
+#         PathJoinSubstitution([pkg_path, 'launch', '41068_navigation.launch.py']),
+#         launch_arguments={
+#             'use_sim_time': use_sim_time,
+#             'params_file': bt_params,   # <- points Nav2 to nav2_bt/config/nav2_bt.yaml
+#         }.items(),
+#         condition=IfCondition(LaunchConfiguration('nav2_bt_test'))
+#     )
+#     ld.add_action(nav2_bt_test_inc)
+
+    
+#     # --- YOLO detector node ---
+        
+#     model_path = PathJoinSubstitution([
+#        FindPackageShare('41068_ignition_bringup'), 'yolo', 'weights', 'best.pt'
+#     ])
+
+#     yolo_node = Node(
+#         package='yolo_detector',             
+#         executable='yolo_detector_node',  
+#         name='yolo_detector',
+#         output='screen',
+#         parameters=[{
+#             'model_path': model_path,
+#             'rgb_topic': '/camera/image',
+#             'depth_topic': '/camera/depth/image',
+#             'info_topic': '/camera/camera_info',
+#             'target_frame': 'map',
+#             'use_sim_time': use_sim_time,
+#             'conf_thres': 0.65,
+#             'iou_thres': 0.65
+#         }],
+#         condition=IfCondition(LaunchConfiguration('yolo'))
+#     )
+#     ld.add_action(yolo_node)
+    
+
+#     return ld
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
-from launch.substitutions import (Command, LaunchConfiguration,
-                                  PathJoinSubstitution, PythonExpression,)
+from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution, PythonExpression
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
-from launch.substitutions import PathJoinSubstitution
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-
 
 
 def generate_launch_description():
@@ -17,62 +204,74 @@ def generate_launch_description():
 
     # Get paths to directories
     pkg_path = FindPackageShare('41068_ignition_bringup')
-    config_path = PathJoinSubstitution([pkg_path,
-                                       'config'])
+    config_path = PathJoinSubstitution([pkg_path, 'config'])
 
-    # Additional command line arguments
+    # ----------------- Launch args -----------------
     use_sim_time_launch_arg = DeclareLaunchArgument(
         'use_sim_time',
         default_value='True',
         description='Flag to enable use_sim_time'
     )
-    use_sim_time = LaunchConfiguration('use_sim_time')
     ld.add_action(use_sim_time_launch_arg)
+    use_sim_time = LaunchConfiguration('use_sim_time')
+
     rviz_launch_arg = DeclareLaunchArgument(
         'rviz',
         default_value='False',
         description='Flag to launch RViz'
     )
     ld.add_action(rviz_launch_arg)
+
     nav2_launch_arg = DeclareLaunchArgument(
         'nav2',
         default_value='True',
         description='Flag to launch Nav2'
     )
     ld.add_action(nav2_launch_arg)
+
     yolo_arg = DeclareLaunchArgument(
         'yolo',
         default_value='false',  # 'true'/'false' as strings
         description='Flag YOLO detector node'
     )
     ld.add_action(yolo_arg)
-    # Load robot_description and start robot_state_publisher
+
+    # Nav2 BT test toggle (kept from your original)
+    nav2_bt_test_arg = DeclareLaunchArgument(
+        'nav2_bt_test',
+        default_value='False',
+        description='Launch Nav2 using the nav2_bt random-walk tree'
+    )
+    ld.add_action(nav2_bt_test_arg)
+
+    # ----------------- Robot description -----------------
     robot_description_content = ParameterValue(
         Command(['xacro ',
-                 PathJoinSubstitution([pkg_path,
-                                       'urdf',
-                                       'husky.urdf.xacro'])]),
-        value_type=str)
-    robot_state_publisher_node = Node(package='robot_state_publisher',
-                                      executable='robot_state_publisher',
-                                      parameters=[{
-                                          'robot_description': robot_description_content,
-                                          'use_sim_time': use_sim_time
-                                      }])
+                 PathJoinSubstitution([pkg_path, 'urdf', 'husky.urdf.xacro'])]),
+        value_type=str
+    )
+    robot_state_publisher_node = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        parameters=[{
+            'robot_description': robot_description_content,
+            'use_sim_time': use_sim_time
+        }]
+    )
     ld.add_action(robot_state_publisher_node)
 
-    # Publish odom -> base_link transform **using robot_localization**
+    # ----------------- Localization -----------------
     robot_localization_node = Node(
         package='robot_localization',
         executable='ekf_node',
         name='robot_localization',
         output='screen',
-        parameters=[PathJoinSubstitution([config_path,
-                                          'robot_localization.yaml']),
+        parameters=[PathJoinSubstitution([config_path, 'robot_localization.yaml']),
                     {'use_sim_time': use_sim_time}]
     )
     ld.add_action(robot_localization_node)
 
+    # ----------------- Gazebo world + bringup (quoted path) -----------------
     world_launch_arg = DeclareLaunchArgument(
         'world',
         default_value='simple_trees',
@@ -81,34 +280,23 @@ def generate_launch_description():
     )
     ld.add_action(world_launch_arg)
 
-    # Build "<world>.sdf" as a quoted PythonExpression
-    world_filename = PythonExpression([
-        "'", LaunchConfiguration('world'), "'", " + '.sdf'"
-    ])
-
-    world_file = PathJoinSubstitution([
-        pkg_path,
-        'worlds',
-        world_filename
-    ])
+    # Build "<world>.sdf" then join into the package/worlds path
+    world_filename = PythonExpression(["'", LaunchConfiguration('world'), "'", " + '.sdf'"])
+    world_file = PathJoinSubstitution([pkg_path, 'worlds', world_filename])
 
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            PathJoinSubstitution([
-                FindPackageShare('ros_ign_gazebo'),
-                'launch',
-                'ign_gazebo.launch.py'
-            ])
+            PathJoinSubstitution([FindPackageShare('ros_ign_gazebo'),
+                                  'launch', 'ign_gazebo.launch.py'])
         ),
         launch_arguments={
-            # Quote the expanded path inside the expression, then append ' -r'
-            'ign_args': PythonExpression([
-                "'", world_file, "'", " + ' -r'"
-            ])
+            # Quote the expanded path and append ' -r'
+            'ign_args': PythonExpression(["'", world_file, "'", " + ' -r'"])
         }.items()
     )
     ld.add_action(gazebo)
-    # Spawn robot in Gazebo
+
+    # ----------------- Spawn robot -----------------
     robot_spawner = Node(
         package='ros_ign_gazebo',
         executable='create',
@@ -118,49 +306,54 @@ def generate_launch_description():
     )
     ld.add_action(robot_spawner)
 
-    # Bridge topics between gazebo and ROS2
+    # ----------------- Bridge -----------------
     gazebo_bridge = Node(
         package='ros_ign_bridge',
         executable='parameter_bridge',
-        parameters=[{'config_file': PathJoinSubstitution([config_path,
-                                                          'gazebo_bridge.yaml']),
-                    'use_sim_time': use_sim_time}]
+        parameters=[{'config_file': PathJoinSubstitution([config_path, 'gazebo_bridge.yaml']),
+                     'use_sim_time': use_sim_time}]
     )
     ld.add_action(gazebo_bridge)
 
-    # rviz2 visualises data
+    # ----------------- RViz -----------------
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
         output='screen',
         parameters=[{'use_sim_time': use_sim_time}],
-        arguments=['-d', PathJoinSubstitution([config_path,
-                                               '41068.rviz'])],
+        arguments=['-d', PathJoinSubstitution([config_path, '41068.rviz'])],
         condition=IfCondition(LaunchConfiguration('rviz'))
     )
     ld.add_action(rviz_node)
 
-    # Nav2 enables mapping and waypoint following
+    # ----------------- Nav2 (standard) -----------------
     nav2 = IncludeLaunchDescription(
-        PathJoinSubstitution([pkg_path,
-                              'launch',
-                              '41068_navigation.launch.py']),
-        launch_arguments={
-            'use_sim_time': use_sim_time
-        }.items(),
+        PathJoinSubstitution([pkg_path, 'launch', '41068_navigation.launch.py']),
+        launch_arguments={'use_sim_time': use_sim_time}.items(),
         condition=IfCondition(LaunchConfiguration('nav2'))
     )
     ld.add_action(nav2)
-    
-    # --- YOLO detector node ---
-        
-    model_path = PathJoinSubstitution([
-       FindPackageShare('41068_ignition_bringup'), 'yolo', 'weights', 'best.pt'
-    ])
 
+    # ----------------- Nav2 BT test (optional) -----------------
+    bt_pkg_share = FindPackageShare('nav2_bt')
+    bt_params = PathJoinSubstitution([bt_pkg_share, 'config', 'nav2_bt.yaml'])
+    nav2_bt_test_inc = IncludeLaunchDescription(
+        PathJoinSubstitution([pkg_path, 'launch', '41068_navigation.launch.py']),
+        launch_arguments={
+            'use_sim_time': use_sim_time,
+            'params_file': bt_params,
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('nav2_bt_test'))
+    )
+    ld.add_action(nav2_bt_test_inc)
+
+    # ----------------- YOLO detector (optional) -----------------
+    model_path = PathJoinSubstitution([
+        FindPackageShare('41068_ignition_bringup'), 'yolo', 'weights', 'best.pt'
+    ])
     yolo_node = Node(
-        package='yolo_detector',             
-        executable='yolo_detector_node',  
+        package='yolo_detector',
+        executable='yolo_detector_node',
         name='yolo_detector',
         output='screen',
         parameters=[{
@@ -176,6 +369,5 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('yolo'))
     )
     ld.add_action(yolo_node)
-    
 
     return ld
