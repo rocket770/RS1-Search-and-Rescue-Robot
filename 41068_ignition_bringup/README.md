@@ -45,7 +45,7 @@ Now install this package:
   source ~/41068_ws/install/setup.bash
 
 FOR THIS REPO
-    source ~/RS1-Search-and-Rescue/install/setup.bash
+    source ~/RS1-Search-and-Rescue-Robot/install/setup.bash
 
   ```
 * Launch basic trees world. It might take a little while to load the first time you run it since it is downloading world model resources. If it crashes the first time, try running it again.
