@@ -259,14 +259,23 @@
 
     <!-- Frog -->
     <include>
-      <uri>package://41068_ignition_bringup/models/Animal_Models/duck</uri>
-      <name>frog</name>
+      <uri>package://41068_ignition_bringup/models/Animal_Models/frog</uri>
+      <name>bear</name>
       <pose>-10 7 0 0 0 0</pose>
     </include>
 
+    <!-- Bear -->
+    <include>
+      <uri>package://41068_ignition_bringup/models/Animal_Models/bear</uri>
+      <name>frog</name>
+      <pose>-10 1 1.25 1.5708 0 -1.0</pose>
+    </include>
+    
+
+
     <!-- Monkey -->
     <include>
-      <uri>package://41068_ignition_bringup/models/Animal_Models/duck</uri>
+      <uri>package://41068_ignition_bringup/models/Animal_Models/monkey</uri>
       <name>monkey</name>
       <pose>-10 8 0 0 0 0</pose>
     </include>

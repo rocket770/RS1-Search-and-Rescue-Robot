@@ -9,7 +9,7 @@
         <geometry>
           <mesh>
             <uri>package://41068_ignition_bringup/models/Animal_Models/bear/meshes/bearv1/bearv1.obj</uri>
-            <scale>1 1 1</scale>
+            <scale>0.5 0.5 0.5</scale>
           </mesh>
         </geometry>
       </visual>
@@ -19,10 +19,18 @@
         <geometry>
           <mesh>
             <uri>package://41068_ignition_bringup/models/Animal_Models/bear/meshes/bearv1/bearv1.obj</uri>
-            <scale>1 1 1</scale>
+            <scale>0.5 0.5 0.5</scale>
           </mesh>
         </geometry>
       </collision>
+
+      <material>
+        <pbr>
+          <metal>
+            <albedo_map>package://41068_ignition_bringup/models/Animal_Models/bear/meshes/bearv1/texture.png</albedo_map>
+          </metal>
+        </pbr>
+      </material>
 
     </link>
   </model>
