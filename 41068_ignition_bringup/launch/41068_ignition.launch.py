@@ -46,6 +46,13 @@ def generate_launch_description():
         description='Flag YOLO detector node'
     )
     ld.add_action(yolo_arg)
+    battery_arg = DeclareLaunchArgument( 
+        'battery', 
+        default_value='true', 
+        description='Launch battery simulator' 
+    ) 
+    ld.add_action(battery_arg)
+
     # Load robot_description and start robot_state_publisher
     robot_description_content = ParameterValue(
         Command(['xacro ',
@@ -176,6 +183,19 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('yolo'))
     )
     ld.add_action(yolo_node)
+
+    battery_sim_node = Node(
+        package='battery_node', 
+        executable='battery_node', 
+        name='battery_node', 
+        output='screen', 
+        parameters=[{
+            'use_sim_time': use_sim_time 
+        }], 
+        condition=IfCondition(LaunchConfiguration('battery')) 
+    ) 
+    
+    ld.add_action(battery_sim_node) 
     
 
     return ld

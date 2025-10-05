@@ -45,6 +45,9 @@ Now install this package:
   source ~/41068_ws/install/setup.bash
 
 FOR THIS REPO
+
+    export LIBGL_ALWAYS_SOFTWARE=1
+
     source ~/RS1-Search-and-Rescue/install/setup.bash
 
   ```
