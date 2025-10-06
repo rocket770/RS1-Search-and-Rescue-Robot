@@ -271,6 +271,12 @@
       <pose>-10 1 1.25 1.5708 0 -1.0</pose>
     </include>
     
+     <!-- Poacher dude -->
+    <include>
+      <uri>package://41068_ignition_bringup/models/Animal_Models/man</uri>
+      <name>man</name>
+      <pose>11 1 0 1.5708 0 -1.5708</pose>
+    </include>
 
 
     <!-- Monkey -->
