@@ -241,41 +241,32 @@
       <pose>-2.27195 -8.68441 0 0 -0 0.9</pose>
     </include>
 
-    <!-- Platypus -->
-    <include>
-      <uri>
-        https://fuel.gazebosim.org/1.0/OpenRobotics/models/platypus
-      </uri>
-      <name>platypus1</name>
-      <pose>-10 5 0 0 0 0</pose>
-    </include>
-
-    <!-- Duck -->
+     <!-- Duck -->
     <include>
       <uri>package://41068_ignition_bringup/models/Animal_Models/duck</uri>
       <name>duck</name>
-      <pose>-10 6 0 0 0 0</pose>
+      <pose>-10 9 0 0 0 0</pose>
     </include>
 
     <!-- Frog -->
     <include>
       <uri>package://41068_ignition_bringup/models/Animal_Models/frog</uri>
       <name>frog</name>
-      <pose>-10 7 0 0 0 0</pose>
+      <pose> 6 -4 0 0 0 0</pose>
     </include>
 
     <!-- Bear -->
     <include>
       <uri>package://41068_ignition_bringup/models/Animal_Models/bear</uri>
       <name>bear</name>
-      <pose>-10 1 1.25 1.5708 0 -1.0</pose>
+      <pose>-7 -6 1.25 1.5708 0 1.0</pose>
     </include>
     
      <!-- Poacher dude -->
     <include>
       <uri>package://41068_ignition_bringup/models/Animal_Models/man</uri>
       <name>man</name>
-      <pose>11 1 0 1.5708 0 -1.5708</pose>
+      <pose>9 4 0 1.5708 0 -1.5708</pose>
     </include>
 
 
@@ -283,7 +274,7 @@
     <include>
       <uri>package://41068_ignition_bringup/models/Animal_Models/monkey</uri>
       <name>monkey</name>
-      <pose>-10 8 0 0 0 0</pose>
+      <pose>2 -7 0 0 0 0</pose>
     </include>
 
     <!-- Rocks -->
