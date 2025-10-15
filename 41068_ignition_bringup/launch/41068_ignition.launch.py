@@ -162,7 +162,7 @@ def generate_launch_description():
     # --- YOLO detector node ---
         
     model_path = PathJoinSubstitution([
-       FindPackageShare('41068_ignition_bringup'), 'yolo', 'weights', 'best.pt'
+       FindPackageShare('41068_ignition_bringup'), 'yolo', 'weights', 'best_domain_specific.pt'
     ])
 
     yolo_node = Node(
