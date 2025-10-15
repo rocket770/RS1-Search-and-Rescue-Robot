@@ -124,6 +124,7 @@ class YoloDetectorNode(Node):
 
         self.get_logger().info(f"YOLO detector started! With model {self.model_path}")
 
+
         # 'class': str, 'point': Point, 'score': float, 'count': int
         self.global_dets = []
 
