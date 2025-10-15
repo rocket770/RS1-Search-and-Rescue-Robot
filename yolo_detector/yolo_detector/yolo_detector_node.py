@@ -32,7 +32,7 @@ class YoloDetectorNode(Node):
         super().__init__('yolo_detector')
 
         # Parameters
-        self.declare_parameter('model_path', 'runs_poc/03_stageB_full/weights/best.pt')
+        self.declare_parameter('model_path', 'runs_poc/03_stageB_full/weights/best_stable_best_result.pt')
         self.declare_parameter('conf_thres', 0.25)
         self.declare_parameter('iou_thres', 0.5)
         self.declare_parameter('camera_frame', 'camera_optical_frame')
@@ -123,6 +123,7 @@ class YoloDetectorNode(Node):
         self.pub_global= self.create_publisher(Detection2DArray, '/yolo_detector/global_detections', 10)
 
         self.get_logger().info(f"YOLO detector started! With model {self.model_path}")
+
 
         # 'class': str, 'point': Point, 'score': float, 'count': int
         self.global_dets = []

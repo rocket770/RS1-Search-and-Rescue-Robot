@@ -162,7 +162,7 @@ def generate_launch_description():
     # --- YOLO detector node ---
         
     model_path = PathJoinSubstitution([
-       FindPackageShare('41068_ignition_bringup'), 'yolo', 'weights', 'best.pt'
+       FindPackageShare('41068_ignition_bringup'), 'yolo', 'weights', 'best_stable_best_result.pt'
     ])
 
     yolo_node = Node(
@@ -177,8 +177,8 @@ def generate_launch_description():
             'info_topic': '/camera/camera_info',
             'target_frame': 'map',
             'use_sim_time': use_sim_time,
-            'conf_thres': 0.65,
-            'iou_thres': 0.65
+            'conf_thres': 0.60,
+            'iou_thres': 0.60
         }],
         condition=IfCondition(LaunchConfiguration('yolo'))
     )
