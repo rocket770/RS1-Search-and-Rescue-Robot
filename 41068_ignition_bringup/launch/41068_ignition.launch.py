@@ -336,14 +336,15 @@ def generate_launch_description():
 
     # ----------------- Nav2 BT test (optional) -----------------
     bt_pkg_share = FindPackageShare('nav2_bt')
-    bt_params = PathJoinSubstitution([bt_pkg_share, 'config', 'nav2_bt.yaml'])
+    bt_xml_file = PathJoinSubstitution([bt_pkg_share, 'bt_xml', 'random_walk.xml'])
+
     nav2_bt_test_inc = IncludeLaunchDescription(
-        PathJoinSubstitution([pkg_path, 'launch', '41068_navigation.launch.py']),
-        launch_arguments={
-            'use_sim_time': use_sim_time,
-            'params_file': bt_params,
-        }.items(),
-        condition=IfCondition(LaunchConfiguration('nav2_bt_test'))
+    PathJoinSubstitution([pkg_path, 'launch', '41068_navigation.launch.py']),
+    launch_arguments={
+        'use_sim_time': use_sim_time,
+        'default_nav_to_pose_bt_xml': bt_xml_file,  # Pass BT XML directly
+    }.items(),
+    condition=IfCondition(LaunchConfiguration('nav2_bt_test'))
     )
     ld.add_action(nav2_bt_test_inc)
 
