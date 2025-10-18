@@ -36,7 +36,7 @@ class YoloDetectorNode(Node):
         self.declare_parameter('conf_thres', 0.25)
         self.declare_parameter('iou_thres', 0.5)
         self.declare_parameter('optical_frame', 'camera_rgb_optical_frame')
-        self.declare_parameter('target_frame', 'world')
+        self.declare_parameter('target_frame', 'map')
         self.declare_parameter('depth_scale', 1.0)   # if depth is in m
         self.declare_parameter('merge_distance', 1.5) # meters for dedup in global list
 
@@ -248,7 +248,7 @@ class YoloDetectorNode(Node):
         try:
             return self.tf_buffer.transform(ps, self.target_frame, timeout=Duration(seconds=0.2))
         except tf2_ros.ExtrapolationException as e:
-            self.get_logger().debug(f"Future extrapolation; retrying with latest TF: {e}")
+            self.get_logger().debug(f"Future extrapation; retrying with latest TF: {e}")
             try:
                 ps_latest = PoseStamped()
                 ps_latest.header = ps.header
