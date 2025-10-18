@@ -35,15 +35,15 @@ class YoloDetectorNode(Node):
         self.declare_parameter('model_path', 'runs_poc/03_stageB_full/weights/best_stable_best_result.pt')
         self.declare_parameter('conf_thres', 0.25)
         self.declare_parameter('iou_thres', 0.5)
-        self.declare_parameter('camera_frame', 'camera_optical_frame')
-        self.declare_parameter('target_frame', 'map')
+        self.declare_parameter('optical_frame', 'camera_rgb_optical_frame')
+        self.declare_parameter('target_frame', 'world')
         self.declare_parameter('depth_scale', 1.0)   # if depth is in m
         self.declare_parameter('merge_distance', 1.5) # meters for dedup in global list
 
         self.model_path   = self.get_parameter('model_path').value
         self.conf_thres   = self.get_parameter('conf_thres').value
         self.iou_thres    = self.get_parameter('iou_thres').value
-        self.cam_frame    = self.get_parameter('camera_frame').value
+        self.optical_frame    = self.get_parameter('optical_frame').value
         self.target_frame = self.get_parameter('target_frame').value
         self.depth_scale  = self.get_parameter('depth_scale').value
         self.merge_dist   = float(self.get_parameter('merge_distance').value)
@@ -92,11 +92,12 @@ class YoloDetectorNode(Node):
             raise RuntimeError("No CameraInfo received at startup")
         else:
             msg = self._startup_caminfo
-            self.K = (msg.k[0], msg.k[4], msg.k[2], msg.k[5])  # fx, fy, cx, cy
-            self.cam_frame = msg.header.frame_id
+            # fx, fy, cx, cy from RGB camera
+            self.K = (msg.k[0], msg.k[4], msg.k[2], msg.k[5])
+
             self.get_logger().info(
-                f"Initial CameraInfo: fx={self.K[0]:.1f} fy={self.K[1]:.1f} "
-                f"cx={self.K[2]:.1f} cy={self.K[3]:.1f} frame={self.cam_frame}"
+                f"Initial CameraInfo (RGB): fx={self.K[0]:.1f} fy={self.K[1]:.1f} "
+                f"cx={self.K[2]:.1f} cy={self.K[3]:.1f}"
             )
 
         self._latest_caminfo = None
@@ -137,7 +138,6 @@ class YoloDetectorNode(Node):
             return
         msg = self._latest_caminfo
         self.K = (msg.k[0], msg.k[4], msg.k[2], msg.k[5])
-        self.cam_frame = msg.header.frame_id
 
     def cb(self, rgb_msg, depth_msg):
         # only run if camera info is there
@@ -183,15 +183,17 @@ class YoloDetectorNode(Node):
                 if d is None or not np.isfinite(d) or d <= 0.0:
                     continue
 
-                #pose in camera frame
+                # pose in camera rbg one OPTICAL frame
                 Xc, Yc, Zc = self.pixel_to_3d(u, v, d, self.K)
+
                 ps = PoseStamped()
                 ps.header = rgb_msg.header
-                ps.header.frame_id = self.cam_frame
-                ps.pose.position.x = float(Xc)
-                ps.pose.position.y = float(Yc)
-                ps.pose.position.z = float(Zc)
+                ps.header.frame_id = self.optical_frame 
+                ps.pose.position.x = float(Xc)  # +X right
+                ps.pose.position.y = float(Yc)  # +Y down
+                ps.pose.position.z = float(Zc)  # +Z forward
                 ps.pose.orientation.w = 1.0
+
 
                 # ransform to target frame; if it fails, skip detection entirely
                 out = self._safe_transform_pose(ps)
