@@ -196,6 +196,22 @@ def generate_launch_description():
     ) 
     
     ld.add_action(battery_sim_node) 
-    
+
+    bt_coord = Node(
+        package="bt_coordinator",
+        executable="coordinator",
+        name="bt_coordinator",
+        parameters=[{
+            "bt_goal_topic": "goal_pose",
+            "map_frame": "map",
+            "approach_distance": 1.0,
+            "battery_threshold": 0.30,
+            "home_pose_xy": [0.0, 0.0],
+            "post_manual_resume_suppress_secs": 8,
+        }],
+    )
+
+    ld.add_action(bt_coord) 
+       
 
     return ld

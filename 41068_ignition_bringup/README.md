@@ -47,7 +47,7 @@ Now install this package:
 FOR THIS REPO
 
     export LIBGL_ALWAYS_SOFTWARE=1
-
+    colcon build
     source ~/RS1-Search-and-Rescue/install/setup.bash
 
   ```
@@ -65,7 +65,7 @@ FOR THIS REPO
   ```
 * And similarly, the larger world, and with SLAM and navigation:
   ```bash
-  ros2 launch 41068_ignition_bringup 41068_ignition.launch.py slam:=true nav2:=true rviz:=true world:=large_demo
+  ros2 launch 41068_ignition_bringup 41068_ignition.launch.py slam:=true nav2:=true rviz:=true world:=large_demo yolo:=true
   ```
 * When launching with rviz, you can send a waypoint to the robot by clicking the "2D Goal pose" and then a location in the map. The robot is navigating using the nav2 package. If it gets stuck, you can try the buttons in the Navigation 2 panel in the top right of RVIZ.
 
