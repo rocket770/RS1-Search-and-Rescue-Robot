@@ -14,7 +14,6 @@ from rclpy.action import ActionClient
 
 from vision_msgs.msg import Detection2DArray  # 2D-only
 
-# ---------- small helpers ----------
 
 def yaw_from_quat(q: Quaternion) -> float:
     ysqr = q.y * q.y
@@ -30,17 +29,7 @@ def make_quat_from_yaw(yaw: float) -> Quaternion:
     q.y = 0.0
     return q
 
-# ---------- coordinator ----------
-
 class BTCoordinator(Node):
-    """
-    High-level coordinator for:
-      - SLAM pause/resume around detection/goal-driven stops
-      - De-dup by class_id (only visit each class once)
-      - Battery failsafe to (0,0) + /reset_battery
-      - “Resume” gating via /user/resume_explore (Trigger)
-      - YOLO: Detection2DArray-only
-    """
 
     ST_EXPLORE = "explore"
     ST_TO_DETECTION = "to_detection"
@@ -54,7 +43,7 @@ class BTCoordinator(Node):
         self.map_frame = self.declare_parameter("map_frame", "map").get_parameter_value().string_value
         self.bt_goal_topic = self.declare_parameter("bt_goal_topic", "user/goal_pose_input").get_parameter_value().string_value
         self.detection_topic = self.declare_parameter("detection_topic", "/yolo_detector/detections").get_parameter_value().string_value
-        self.approach_distance = float(self.declare_parameter("approach_distance", 1.0).value)
+        self.approach_distance = float(self.declare_parameter("approach_distance", 2.0).value)
         self.battery_threshold = float(self.declare_parameter("battery_threshold", 0.30).value)
         self.home_pose_xy = tuple(self.declare_parameter("home_pose_xy", [0.0, 0.0]).value)  # [x, y]
         self.post_manual_resume_suppress_secs = int(self.declare_parameter("post_manual_resume_suppress_secs", 8).value)
@@ -119,7 +108,7 @@ class BTCoordinator(Node):
     def _on_user_resume(self, req, resp):
         if self.state != self.ST_WAIT_RESUME:
             resp.success = True
-            resp.message = "Already exploring or busy; resuming anyway."
+            resp.message = "Already exploring or busy but resuming anyway."
             return resp
 
         resumed = self.call_trigger(self.srv_resume)
