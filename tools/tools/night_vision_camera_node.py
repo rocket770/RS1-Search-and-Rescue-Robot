@@ -7,12 +7,13 @@ import numpy as np
 from typing import Optional
 
 class NightVisionNode(Node):
+    # _process() and _vignette_mask() are from chatgpt!!!
     def __init__(self):
         super().__init__('night_vision_node')
         self.declare_parameter('in_image', '/model/husky/camera/image')
         self.declare_parameter('out_image', '/night_vision/image')
 
-        # idek what these do i just foundit online
+        # idek what these do i just foundit online from chatgpt!!
         self.declare_parameter('noise_stddev', 8.0)
         self.declare_parameter('gain', 2.0)
         self.declare_parameter('clahe_clip', 3.0)
@@ -41,7 +42,7 @@ class NightVisionNode(Node):
         period = 1.0 / self.pub_hz
         self.timer = self.create_timer(period, self._timer_publish)
 
-    # again i have no idea how this works, fiund it online
+    # again i have no idea how this works, fiund it online from chatgpt!!
     def _vignette_mask(self, h, w):
         key = (h, w)
         if key in self.vignette_cache:
@@ -55,6 +56,7 @@ class NightVisionNode(Node):
         self.vignette_cache[key] = mask
         return mask
 
+    # again i have no idea how this works, fiund it online from chatgpt!!
     def _process(self, msg: Image) -> Image:
         cv = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
 
