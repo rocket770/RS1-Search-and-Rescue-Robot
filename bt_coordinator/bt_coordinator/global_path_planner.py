@@ -57,7 +57,7 @@ class GlobalPathPlanner(Node):
         )
 
     def _on_goal(self, goal: PoseStamped) -> None:
-        if not self.action_client.wait_for_server(timeout_sec=1.0):
+        if not self.action_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error("Planner action server no worky.")
             return
 

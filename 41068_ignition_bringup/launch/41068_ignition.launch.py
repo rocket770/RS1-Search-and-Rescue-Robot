@@ -206,7 +206,7 @@ def generate_launch_description():
         parameters=[{
             "bt_goal_topic": "goal_pose",
             "map_frame": "map",
-            "approach_distance": 1.0,
+            "approach_distance": 2.5,
             "battery_threshold": 0.30,
             "home_pose_xy": home_base_location,
             "post_manual_resume_suppress_secs": 8,
@@ -227,5 +227,30 @@ def generate_launch_description():
         }]
     )
     ld.add_action(path_planner) 
+
+    tools_time = Node(
+        package='tools',
+        executable='toggle_time_node',
+        name='toggle_time_node',
+        output='screen',
+        parameters=[{
+            'world_name': LaunchConfiguration('world'),
+            'sun_name': 'sun',
+        }]
+    )
+    ld.add_action(tools_time) 
+
+    tools_nv = Node(
+        package='tools',
+        executable='night_vision_camera_node',
+        name='night_vision_camera_node',
+        output='screen',
+        parameters=[{
+            'in_image': '/camera/image',
+            'out_image': '/night_vision/image',
+            'publish_hz': 1.0
+        }]
+    )
+    ld.add_action(tools_nv)
 
     return ld

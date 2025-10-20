@@ -14,6 +14,8 @@ from rclpy.action import ActionClient
 
 from vision_msgs.msg import Detection2DArray  # 2D-only
 
+from nav2_msgs.msg import SpeedLimit
+
 
 def yaw_from_quat(q: Quaternion) -> float:
     ysqr = q.y * q.y
@@ -65,11 +67,6 @@ class BTCoordinator(Node):
         self.sub_goal = self.create_subscription(PoseStamped, f"/{self.bt_goal_topic}", self._on_user_goal, 10)
         self.sub_detect2d = self.create_subscription(Detection2DArray, self.detection_topic, self._on_det, 10)
 
-        self.get_logger().info(
-            f"bt_coordinator up. Using Detection2DArray on '{self.detection_topic}'. "
-            "States: explore → (to_detection | to_manual | to_dock) → wait_resume."
-        )
-
         self._wait_for_service(self.srv_pause, "/slam/pause")
         self._wait_for_service(self.srv_resume, "/slam/resume")
         self._wait_for_service(self.srv_reset_batt, "/reset_battery")
@@ -81,6 +78,21 @@ class BTCoordinator(Node):
         self.pub_global_goal = self.create_publisher(PoseStamped, self.global_goal_topic, 10)
 
         self.global_paths = set()
+
+        self.slowdown_factor = float(self.declare_parameter("slowdown_factor", 0.5).value) 
+
+        self.speed_limit_topic = self.declare_parameter(
+            "speed_limit_topic", "/speed_limit"
+        ).get_parameter_value().string_value
+        self.pub_speed_limit = self.create_publisher(SpeedLimit, self.speed_limit_topic, 10)
+
+        self._speed_reduced = False
+
+        self.get_logger().info(
+            f"bt_coordinator up. Using '{self.detection_topic}'. "
+            "States: explore → (to_detection | to_manual | to_dock) → wait_resume."
+        )
+
 
     def _wait_for_service(self, client, name):
         if not client.service_is_ready():
@@ -112,7 +124,14 @@ class BTCoordinator(Node):
         future = client.call_async(Empty.Request())
         rclpy.spin_until_future_complete(self, future, timeout_sec=3.0)
         return future.result() is not None
-
+    
+    def _set_speed_percentage(self, pct: float):
+        self.get_logger().info(f"Setting speed: '{pct}'. ")
+        msg = SpeedLimit()
+        msg.percentage = True
+        msg.speed_limit = float(max(0.0, min(1.0, pct)) * 100.0)
+        self.pub_speed_limit.publish(msg)
+        
     def _on_user_resume(self, req, resp):
         if self.state != self.ST_WAIT_RESUME:
             resp.success = True
@@ -127,6 +146,9 @@ class BTCoordinator(Node):
                 self.suppress_detections_until = now + float(self.post_manual_resume_suppress_secs)
             resp.success = True
             resp.message = "Exploration resumed."
+            if self._speed_reduced == True:
+                self._set_speed_percentage(1.0)
+                self._speed_reduced = False
         else:
             resp.success = False
             resp.message = "Failed to resume SLAM."
@@ -138,11 +160,17 @@ class BTCoordinator(Node):
         if msg.percentage < self.battery_threshold:
             if self.state != self.ST_TO_DOCK:
                 self.get_logger().warn(f"Battery low ({msg.percentage:.2f}); returning home.")
+                if self._speed_reduced == True:
+                    self._set_speed_percentage(1.0)
+                    self._speed_reduced = False
                 self._preempt_everything()
                 self._pause_slam()
                 self._go_to_home()
 
     def _on_user_goal(self, pose: PoseStamped):
+        if self._speed_reduced:
+            self._set_speed_percentage(1.0)
+            self._speed_reduced = False
         self.get_logger().info("Received manual goal; pausing SLAM and navigating.")
         self._preempt_everything()
         self._pause_slam()
@@ -168,12 +196,11 @@ class BTCoordinator(Node):
             f"Published static path goal at ({x:.2f}, {y:.2f}) to {self.global_goal_topic}"
         )
 
-
     def _on_det(self, arr: Detection2DArray):
         # ignore if we're not in exploration or if suppressed
         if self._should_ignore_detections():
             return
-
+        
         frame = getattr(arr.header, "frame_id", "") or self.map_frame
 
         # Strategy: pick the highest-score (class, pose) pair from the first detection that has a pose. 
@@ -214,6 +241,10 @@ class BTCoordinator(Node):
             self._preempt_everything()
             self._pause_slam()
 
+            if self._speed_reduced == False:
+                self._set_speed_percentage(self.slowdown_factor)
+                self._speed_reduced = True
+
             goal = PoseStamped()
             goal.header.frame_id = frame
             goal.header.stamp = self.get_clock().now().to_msg()
@@ -251,12 +282,8 @@ class BTCoordinator(Node):
         goal_msg = NavigateToPose.Goal()
         goal_msg.pose = pose
         self.state = target_state
-        self.active_goal_id = self.nav_client.send_goal_async(goal_msg, feedback_callback=self._on_nav_feedback)
+        self.active_goal_id = self.nav_client.send_goal_async(goal_msg)
         self.active_goal_id.add_done_callback(lambda fut: self._on_nav_accepted(fut, detection_class))
-
-    def _on_nav_feedback(self, feedback):
-        # prob debug here idk
-        pass
 
     def _on_nav_accepted(self, fut, detection_class: Optional[str]):
         goal_handle = fut.result()
