@@ -196,6 +196,61 @@ def generate_launch_description():
     ) 
     
     ld.add_action(battery_sim_node) 
-    
+
+    home_base_location = [0.0, 0.0]
+
+    bt_coord = Node(
+        package="bt_coordinator",
+        executable="coordinator",
+        name="bt_coordinator",
+        parameters=[{
+            "bt_goal_topic": "goal_pose",
+            "map_frame": "map",
+            "approach_distance": 2.5,
+            "battery_threshold": 0.30,
+            "home_pose_xy": home_base_location,
+            "post_manual_resume_suppress_secs": 8,
+        }],
+    )
+    ld.add_action(bt_coord) 
+
+    path_planner = Node(
+        package='bt_coordinator',
+        executable='global_path_planner',
+        name='global_path_planner',
+        output='screen',
+        parameters=[{
+            'home_pose_xy': home_base_location,
+            'frame_id': 'map',
+            'goal_topic': '/static_path/goal',
+            'planner_action': '/compute_path_to_pose'
+        }]
+    )
+    ld.add_action(path_planner) 
+
+    tools_time = Node(
+        package='tools',
+        executable='toggle_time_node',
+        name='toggle_time_node',
+        output='screen',
+        parameters=[{
+            'world_name': LaunchConfiguration('world'),
+            'sun_name': 'sun',
+        }]
+    )
+    ld.add_action(tools_time) 
+
+    tools_nv = Node(
+        package='tools',
+        executable='night_vision_camera_node',
+        name='night_vision_camera_node',
+        output='screen',
+        parameters=[{
+            'in_image': '/camera/image',
+            'out_image': '/night_vision/image',
+            'publish_hz': 1.0
+        }]
+    )
+    ld.add_action(tools_nv)
 
     return ld

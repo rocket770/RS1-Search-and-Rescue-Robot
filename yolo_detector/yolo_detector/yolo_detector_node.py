@@ -1,292 +1,196 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
-from rclpy.task import Future
 from rclpy.duration import Duration
-from rclpy.time import Time
 
 import numpy as np
 import cv2
 from cv_bridge import CvBridge
 
-from sensor_msgs.msg import Image, CameraInfo
+from sensor_msgs.msg import Image
 from geometry_msgs.msg import Point, PoseStamped
-from std_msgs.msg import Header
-
-import tf2_geometry_msgs
 
 from ultralytics import YOLO
 import torch
 
 import message_filters
-import tf2_ros
 
 from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose, BoundingBox2D
 
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
-from builtin_interfaces.msg import Time as BuiltinTime
 from math import sqrt
+
+import threading, subprocess, re, sys, time
+
+
+class IgnitionPoseWatcher:
+
+    def __init__(self, topic: str, cli: str = "ign"):
+        self.topic = topic
+        self.cli = cli  
+        self._poses = {}            
+        self._lock = threading.Lock()
+        self._stop = False
+        self._t = threading.Thread(target=self._run, daemon=True)
+        self._t.start()
+
+    def stop(self):
+        self._stop = True
+
+    def get_xyz(self, name: str):
+        with self._lock:
+            return self._poses.get(name)
+
+    def _run(self):
+        cmd = [self.cli, "topic", "-t", self.topic, "-e"]
+        try:
+            p = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                bufsize=1,
+                universal_newlines=True,
+            )
+        except FileNotFoundError:
+            print(f"[IgnitionPoseWatcher] '{self.cli}' not found in PATH", file=sys.stderr)
+            return
+
+        name = None; x = y = z = None
+        in_pose = False; in_pos = False
+        rx_name = re.compile(r'^\s*name:\s*"([^"]+)"')
+        rx_xyz  = re.compile(r'^\s*([xyz]):\s*([-+0-9.eE]+)')
+
+        while not self._stop:
+            line = p.stdout.readline()
+            if not line:
+                time.sleep(0.02)
+                continue
+            s = line.strip()
+
+            if s.startswith("pose {"):
+                in_pose = True; in_pos = False
+                name = None; x = y = z = None
+                continue
+
+            if in_pose and s == "}":
+                # end of a single pose block
+                if name is not None and x is not None and y is not None:
+                    with self._lock:
+                        self._poses[name] = (x, y, z if z is not None else 0.0)
+                in_pose = False; in_pos = False
+                continue
+
+            if not in_pose:
+                continue
+
+            m = rx_name.match(s)
+            if m:
+                name = m.group(1)
+                continue
+
+            if s.startswith("position"):
+                in_pos = True
+                continue
+            if in_pos and s == "}":
+                in_pos = False
+                continue
+
+            if in_pos:
+                m2 = rx_xyz.match(s)
+                if m2:
+                    axis, val = m2.group(1), float(m2.group(2))
+                    if axis == "x": x = val
+                    elif axis == "y": y = val
+                    elif axis == "z": z = val
+
 
 class YoloDetectorNode(Node):
     def __init__(self):
         super().__init__('yolo_detector')
 
-        # Parameters
         self.declare_parameter('model_path', 'runs_poc/03_stageB_full/weights/best_stable_best_result.pt')
         self.declare_parameter('conf_thres', 0.25)
         self.declare_parameter('iou_thres', 0.5)
-        self.declare_parameter('camera_frame', 'camera_optical_frame')
         self.declare_parameter('target_frame', 'map')
-        self.declare_parameter('depth_scale', 1.0)   # if depth is in m
-        self.declare_parameter('merge_distance', 1.5) # meters for dedup in global list
+
+        self.declare_parameter('ign_topic', '/world/large_demo/pose/info')
+        self.declare_parameter('ign_cli', 'ign')  
+
+        self.declare_parameter('name_aliases', '')
 
         self.model_path   = self.get_parameter('model_path').value
-        self.conf_thres   = self.get_parameter('conf_thres').value
-        self.iou_thres    = self.get_parameter('iou_thres').value
-        self.cam_frame    = self.get_parameter('camera_frame').value
+        self.conf_thres   = float(self.get_parameter('conf_thres').value)
+        self.iou_thres    = float(self.get_parameter('iou_thres').value)
         self.target_frame = self.get_parameter('target_frame').value
-        self.depth_scale  = self.get_parameter('depth_scale').value
-        self.merge_dist   = float(self.get_parameter('merge_distance').value)
 
-        # Auto GPU then CPU fallback
+        self.ign_topic = self.get_parameter('ign_topic').value
+        self.ign_cli   = self.get_parameter('ign_cli').value
+
+        aliases_str = self.get_parameter('name_aliases').value.strip()
+        self.name_alias = self._parse_aliases(aliases_str)
+
         self.device = 0 if torch.cuda.is_available() else "cpu"
         self.get_logger().info(f"Using device: {'CUDA:0' if self.device == 0 else 'CPU'}")
 
-        # Load YOLO model
-        self.model = YOLO(self.model_path)
-        self.model.to(self.device)
+        try:
+            self.model = YOLO(self.model_path)
+            self.model.to(self.device)
+        except Exception as e:
+            self.get_logger().error(f"Failed to load YOLO model at {self.model_path}: {e}")
+            raise
 
         self.bridge = CvBridge()
-        self.K = None  # cam intrinsics (fx, fy, cx, cy)
 
-        # TF buffer/listener
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        self.get_logger().info(f"Starting Pose_V watcher on {self.ign_cli} topic: {self.ign_topic}")
+        self.pose_watcher = IgnitionPoseWatcher(self.ign_topic, cli=self.ign_cli)
 
-        reliable_qos = QoSProfile(
-            depth=10,
-            reliability=ReliabilityPolicy.RELIABLE,
-            history=HistoryPolicy.KEEP_LAST
-        )
-        startup_qos = QoSProfile(
-            depth=5,
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            history=HistoryPolicy.KEEP_LAST
-        )
+        reliable_qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE,
+                                  history=HistoryPolicy.KEEP_LAST)
 
-        # Wait for initial CameraInfo
-        self._startup_caminfo = None
-        ready_future = Future()
+        sub_rgb   = message_filters.Subscriber(self, Image, '/camera/image', qos_profile=reliable_qos)
 
-        def _caminfo_once(msg: CameraInfo):
-            self._startup_caminfo = msg
-            if not ready_future.done():
-                ready_future.set_result(True)
-
-        temp_sub = self.create_subscription(CameraInfo, '/camera/camera_info', _caminfo_once, startup_qos)
-        rclpy.spin_until_future_complete(self, ready_future, timeout_sec=None)
-        self.destroy_subscription(temp_sub)
-
-        if not ready_future.done():
-            self.get_logger().error("Timed out waiting for initial CameraInfo; shutting down.")
-            raise RuntimeError("No CameraInfo received at startup")
-        else:
-            msg = self._startup_caminfo
-            self.K = (msg.k[0], msg.k[4], msg.k[2], msg.k[5])  # fx, fy, cx, cy
-            self.cam_frame = msg.header.frame_id
-            self.get_logger().info(
-                f"Initial CameraInfo: fx={self.K[0]:.1f} fy={self.K[1]:.1f} "
-                f"cx={self.K[2]:.1f} cy={self.K[3]:.1f} frame={self.cam_frame}"
-            )
-
-        self._latest_caminfo = None
-        self._last_caminfo_warn = None
-
-        caminfo_qos = QoSProfile(
-            depth=1,
-            reliability=ReliabilityPolicy.BEST_EFFORT,
-            history=HistoryPolicy.KEEP_LAST
-        )
-        self.create_subscription(CameraInfo, '/camera/camera_info', self._caminfo_cb, caminfo_qos)
-
-        self.create_timer(1.0, self._process_caminfo_1hz)
-
-        sub_rgb   = message_filters.Subscriber(self, Image, '/camera/image',       qos_profile=reliable_qos)
-        sub_depth = message_filters.Subscriber(self, Image, '/camera/depth/image', qos_profile=reliable_qos)
-
-        ats = message_filters.ApproximateTimeSynchronizer([sub_rgb, sub_depth], queue_size=10, slop=0.1)
+        ats = message_filters.ApproximateTimeSynchronizer([sub_rgb], queue_size=10, slop=0.1)
         ats.registerCallback(self.cb)
 
-        # Publishers
-        self.pub_det   = self.create_publisher(Detection2DArray, '/yolo_detector/detections', 10)
-        self.pub_image = self.create_publisher(Image, '/yolo_detector/detections/image', reliable_qos)
-        self.pub_global= self.create_publisher(Detection2DArray, '/yolo_detector/global_detections', 10)
+        self.pub_det    = self.create_publisher(Detection2DArray, '/yolo_detector/detections', 10)
+        self.pub_image  = self.create_publisher(Image, '/yolo_detector/detections/image', reliable_qos)
+        self.pub_global = self.create_publisher(Detection2DArray, '/yolo_detector/global_detections', 10)
 
-        self.get_logger().info(f"YOLO detector started! With model {self.model_path}")
-
-
-        # 'class': str, 'point': Point, 'score': float, 'count': int
+        # persistent global list: {'class': str, 'point': Point, 'score': float, 'count': int}
         self.global_dets = []
 
-    # CameraInfo sampling 1 Hz
-    def _caminfo_cb(self, msg: CameraInfo):
-        self._latest_caminfo = msg
+        self.get_logger().info(f"YOLO detector started with model {self.model_path} (no TF/depth math)")
 
-    def _process_caminfo_1hz(self):
-        if self._latest_caminfo is None:
-            return
-        msg = self._latest_caminfo
-        self.K = (msg.k[0], msg.k[4], msg.k[2], msg.k[5])
-        self.cam_frame = msg.header.frame_id
-
-    def cb(self, rgb_msg, depth_msg):
-        # only run if camera info is there
-        if self.K is None:
-            now = self.get_clock().now()
-            if (self._last_caminfo_warn is None) or ((now - self._last_caminfo_warn) > Duration(seconds=5.0)):
-                self.get_logger().warning("Waiting for CameraInfo (intrinsics not ready)")
-                self._last_caminfo_warn = now
-            return
-
-        fx, fy, cx, cy = self.K # camera intrinsics or whatever its called lol
-
-        # Convert ROS to OpenCV
-        color = self.bridge.imgmsg_to_cv2(rgb_msg, "bgr8")
-        depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
-        if depth.dtype != np.float32:
-            depth = depth.astype(np.float32) * self.depth_scale
-
-        results = self.model.predict(
-            source=color, conf=self.conf_thres, iou=self.iou_thres,
-            verbose=False, device=self.device
-        )
-
-        det_array = Detection2DArray()
-        det_array.header = rgb_msg.header  
-        annotated = color.copy()
-
-        any_global_added = False  # track if we added to the persistent array this frame
-
-        for r in results:
-            if not getattr(r, "boxes", None) or len(r.boxes) == 0:
-                continue
-            names = getattr(r, "names", None) or getattr(self.model, "names", {}) or {}
-            for box in r.boxes:
-                cls_id = int(box.cls[0])
-                label_name = names.get(cls_id, str(cls_id))
-                conf = float(box.conf[0])
-                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().tolist()
-                u, v = (x1 + x2) / 2.0, (y1 + y2) / 2.0
-
-                # get depth or skip
-                d = self.get_depth_median(depth, int(u), int(v), k=5)
-                if d is None or not np.isfinite(d) or d <= 0.0:
-                    continue
-
-                #pose in camera frame
-                Xc, Yc, Zc = self.pixel_to_3d(u, v, d, self.K)
-                ps = PoseStamped()
-                ps.header = rgb_msg.header
-                ps.header.frame_id = self.cam_frame
-                ps.pose.position.x = float(Xc)
-                ps.pose.position.y = float(Yc)
-                ps.pose.position.z = float(Zc)
-                ps.pose.orientation.w = 1.0
-
-                # ransform to target frame; if it fails, skip detection entirely
-                out = self._safe_transform_pose(ps)
-                if out is None:
-                    continue
-
-                # Dedup into the persistent global list (by class and dist)
-                added = self._add_to_global_if_new(label_name, out.pose.position, conf)
-                any_global_added = any_global_added or added
-
-                #only now make per-frame detection (for the image overlay topic)
-                det = Detection2D()
-                det.header = rgb_msg.header
-
-                hyp = ObjectHypothesisWithPose()
-                hyp.hypothesis.class_id = label_name
-                hyp.hypothesis.score = conf
-                hyp.pose.pose.position = out.pose.position
-                det.results.append(hyp)
-
-                bb = BoundingBox2D()
-                bb.center.position.x = float(u); bb.center.position.y = float(v)
-                bb.size_x = float(x2 - x1); bb.size_y = float(y2 - y1)
-                det.bbox = bb
-
-                det_array.detections.append(det)
-
-                # draw only for published per-frame detections
-                x1_i, y1_i, x2_i, y2_i = map(int, (x1, y1, x2, y2))
-                cv2.rectangle(annotated, (x1_i, y1_i), (x2_i, y2_i), (0, 255, 0), 2)
-                label = f"{label_name} {conf:.2f}"
-                cv2.putText(annotated, label, (x1_i, max(0, y1_i - 5)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-
-        # Publish per-frame detections
-        if len(det_array.detections) > 0:
-            self.pub_det.publish(det_array)
-
-        # publish the global (persistent) array ONLY if something new was added 
-        if any_global_added:
-            global_msg = self._build_global_detection_array(det_array.header.stamp)
-            self.pub_global.publish(global_msg)
-
-        # Annotated image goes out regardless; comment these two lines if you want to only publish when detections occur
-        img_msg = self.bridge.cv2_to_imgmsg(annotated, encoding="bgr8")
-        img_msg.header = rgb_msg.header
-        self.pub_image.publish(img_msg)
-
-
-    # honestyly not certain with how this works, but its trys to match the time up of the messages so it can transform more accruately
-    def _safe_transform_pose(self, ps: PoseStamped) -> PoseStamped | None:
-        try:
-            return self.tf_buffer.transform(ps, self.target_frame, timeout=Duration(seconds=0.2))
-        except tf2_ros.ExtrapolationException as e:
-            self.get_logger().debug(f"Future extrapolation; retrying with latest TF: {e}")
-            try:
-                ps_latest = PoseStamped()
-                ps_latest.header = ps.header
-                ps_latest.header.stamp = BuiltinTime(sec=0, nanosec=0)  # special value meaning "latest"
-                ps_latest.pose = ps.pose
-                return self.tf_buffer.transform(ps_latest, self.target_frame, timeout=Duration(seconds=0.2))
-            except Exception:
-                try:
-                    original = Time.from_msg(ps.header.stamp)
-                    backdated = (original - Duration(seconds=0.1)).to_msg()
-                    ps_back = PoseStamped()
-                    ps_back.header = ps.header
-                    ps_back.header.stamp = backdated
-                    ps_back.pose = ps.pose
-                    return self.tf_buffer.transform(ps_back, self.target_frame, timeout=Duration(seconds=0.2))
-                except Exception as e3:
-                    self.get_logger().warning(f"TF transform still failing after fallbacks: {e3}")
-                    return None
-        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.TimeoutException) as e:
-            self.get_logger().warning(f"TF transform failed: {e}")
-            return None
-
-    def _add_to_global_if_new(self, class_id: str, p: Point, score: float) -> bool:
-        for g in self.global_dets:
-            if g['class'] != class_id:
-                continue
-            if self._dist_xy(g['point'], p) <= self.merge_dist:
-                # already have a nearby one; update stats (optional)
-                g['score'] = max(g['score'], score)
-                g['count'] += 1
-                return False
-        # new unique detection
-        self.global_dets.append({'class': class_id, 'point': Point(x=p.x, y=p.y, z=p.z), 'score': score, 'count': 1})
-        return True
+    @staticmethod
+    def _parse_aliases(s: str):
+        if not s:
+            return {}
+        out = {}
+        for pair in s.split(','):
+            if ':' in pair:
+                k, v = pair.split(':', 1)
+                k = k.strip(); v = v.strip()
+                if k:
+                    out[k] = v
+        return out
 
     @staticmethod
     def _dist_xy(a: Point, b: Point) -> float:
         return ((a.x - b.x)**2 + (a.y - b.y)**2) ** 0.5
 
-    def _build_global_detection_array(self, stamp: BuiltinTime) -> Detection2DArray:
+    def _add_to_global_if_new(self, class_id: str, p: Point, score: float) -> bool:
+        for g in self.global_dets:
+            if g['class'] != class_id:
+                continue
+            if self._dist_xy(g['point'], p) <= 0.5: 
+                g['score'] = max(g['score'], score)
+                g['count'] += 1
+                return False
+        self.global_dets.append({'class': class_id, 'point': Point(x=p.x, y=p.y, z=p.z), 'score': score, 'count': 1})
+        return True
+
+    def _build_global_detection_array(self, stamp) -> Detection2DArray:
         arr = Detection2DArray()
         arr.header.stamp = stamp
         arr.header.frame_id = self.target_frame
@@ -302,25 +206,106 @@ class YoloDetectorNode(Node):
             arr.detections.append(det)
         return arr
 
-    @staticmethod
-    def get_depth_median(depth_img, u, v, k=5):
-        h, w = depth_img.shape[:2]
-        half = k // 2
-        x1 = max(0, u-half); x2 = min(w, u+half+1)
-        y1 = max(0, v-half); y2 = min(h, v+half+1)
-        patch = depth_img[int(y1):int(y2), int(x1):int(x2)]
-        vals = patch[np.isfinite(patch) & (patch > 0)]
-        if vals.size == 0:
-            return None
-        return float(np.median(vals))
+    def cb(self, rgb_msg: Image):
+        # Convert ROS to OpenCV
+        try:
+            color = self.bridge.imgmsg_to_cv2(rgb_msg, "bgr8")
+        except Exception as e:
+            self.get_logger().warning(f"cv_bridge conversion failed: {e}")
+            return
 
-    @staticmethod
-    def pixel_to_3d(u, v, depth, K):
-        fx, fy, cx, cy = K
-        X = (u - cx) * depth / fx
-        Y = (v - cy) * depth / fy
-        Z = depth
-        return X, Y, Z
+        # Run YOLO
+        try:
+            results = self.model.predict(
+                source=color,
+                conf=self.conf_thres,
+                iou=self.iou_thres,
+                verbose=False,
+                device=self.device
+            )
+        except Exception as e:
+            self.get_logger().warning(f"YOLO inference failed: {e}")
+            return
+
+        det_array = Detection2DArray()
+        det_array.header = rgb_msg.header
+        annotated = color.copy()
+
+        any_global_added = False
+
+        for r in results:
+            if not getattr(r, "boxes", None) or len(r.boxes) == 0:
+                continue
+            names = getattr(r, "names", None) or getattr(self.model, "names", {}) or {}
+            for box in r.boxes:
+                cls_id = int(box.cls[0])
+                label_name = names.get(cls_id, str(cls_id))
+                conf = float(box.conf[0])
+                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().tolist()
+                u, v = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+
+                # --- lk up world pose by entity name from Ignition/Gazebo ---
+                ign_name = self.name_alias.get(label_name, label_name)
+                xyz = self.pose_watcher.get_xyz(ign_name)
+                if xyz is None:
+                    # no pose available with that name in the current Pose_V stream
+                    continue
+                world_x, world_y, world_z = xyz
+
+                out = PoseStamped()
+                out.header = rgb_msg.header
+                out.header.frame_id = self.target_frame
+                out.pose.position.x = float(world_x)
+                out.pose.position.y = float(world_y)
+                out.pose.position.z = float(world_z)
+                out.pose.orientation.w = 1.0
+
+                # Dedup into global list
+                added = self._add_to_global_if_new(label_name, out.pose.position, conf)
+                any_global_added = any_global_added or added
+
+                # Per-frame detection message
+                det = Detection2D()
+                det.header = rgb_msg.header
+
+                hyp = ObjectHypothesisWithPose()
+                hyp.hypothesis.class_id = label_name
+                hyp.hypothesis.score = conf
+                hyp.pose.pose.position = out.pose.position
+                det.results.append(hyp)
+
+                bb = BoundingBox2D()
+                bb.center.position.x = float(u)
+                bb.center.position.y = float(v)
+                bb.size_x = float(x2 - x1)
+                bb.size_y = float(y2 - y1)
+                det.bbox = bb
+
+                det_array.detections.append(det)
+
+                # Draw on image for rvis debug or in future we can use for our ui
+                x1_i, y1_i, x2_i, y2_i = map(int, (x1, y1, x2, y2))
+                cv2.rectangle(annotated, (x1_i, y1_i), (x2_i, y2_i), (0, 255, 0), 2)
+                cv2.putText(annotated, f"{label_name} {conf:.2f}",
+                            (x1_i, max(0, y1_i - 5)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+
+        # Publish per-frame detections
+        if len(det_array.detections) > 0:
+            self.pub_det.publish(det_array)
+
+        # Publish global detections but we only do it wheen new change
+        if any_global_added:
+            global_msg = self._build_global_detection_array(det_array.header.stamp)
+            self.pub_global.publish(global_msg)
+
+        # Publish annotated image (always)
+        try:
+            img_msg = self.bridge.cv2_to_imgmsg(annotated, encoding="bgr8")
+            img_msg.header = rgb_msg.header
+            self.pub_image.publish(img_msg)
+        except Exception as e:
+            self.get_logger().warning(f"Failed to publish annotated image: {e}")
 
 
 def main(args=None):
@@ -330,6 +315,7 @@ def main(args=None):
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
+    node.pose_watcher.stop()
     node.destroy_node()
     rclpy.shutdown()
 

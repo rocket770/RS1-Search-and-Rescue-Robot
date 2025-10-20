@@ -47,8 +47,8 @@ Now install this package:
 FOR THIS REPO
 
     export LIBGL_ALWAYS_SOFTWARE=1
-
-    source ~/RS1-Search-and-Rescue/install/setup.bash
+    colcon build
+    source install/setup.bash
 
   ```
 * Launch basic trees world. It might take a little while to load the first time you run it since it is downloading world model resources. If it crashes the first time, try running it again.
@@ -65,7 +65,7 @@ FOR THIS REPO
   ```
 * And similarly, the larger world, and with SLAM and navigation:
   ```bash
-  ros2 launch 41068_ignition_bringup 41068_ignition.launch.py slam:=true nav2:=true rviz:=true world:=large_demo
+  ros2 launch 41068_ignition_bringup 41068_ignition.launch.py slam:=true nav2:=true rviz:=true world:=large_demo yolo:=true
   ```
 * When launching with rviz, you can send a waypoint to the robot by clicking the "2D Goal pose" and then a location in the map. The robot is navigating using the nav2 package. If it gets stuck, you can try the buttons in the Navigation 2 panel in the top right of RVIZ.
 
