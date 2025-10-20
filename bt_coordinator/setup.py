@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'coordinator = bt_coordinator.coordinator:main',
+            'global_path_planner = bt_coordinator.global_path_planner:main',
         ],
     },
 )

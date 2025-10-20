@@ -197,6 +197,8 @@ def generate_launch_description():
     
     ld.add_action(battery_sim_node) 
 
+    home_base_location = [0.0, 0.0]
+
     bt_coord = Node(
         package="bt_coordinator",
         executable="coordinator",
@@ -206,12 +208,24 @@ def generate_launch_description():
             "map_frame": "map",
             "approach_distance": 1.0,
             "battery_threshold": 0.30,
-            "home_pose_xy": [0.0, 0.0],
+            "home_pose_xy": home_base_location,
             "post_manual_resume_suppress_secs": 8,
         }],
     )
-
     ld.add_action(bt_coord) 
-       
+
+    path_planner = Node(
+        package='bt_coordinator',
+        executable='global_path_planner',
+        name='global_path_planner',
+        output='screen',
+        parameters=[{
+            'home_pose_xy': home_base_location,
+            'frame_id': 'map',
+            'goal_topic': '/static_path/goal',
+            'planner_action': '/compute_path_to_pose'
+        }]
+    )
+    ld.add_action(path_planner) 
 
     return ld

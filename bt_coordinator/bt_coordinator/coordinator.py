@@ -63,7 +63,7 @@ class BTCoordinator(Node):
 
         self.sub_battery = self.create_subscription(BatteryState, "/battery_state", self._on_battery, 10)
         self.sub_goal = self.create_subscription(PoseStamped, f"/{self.bt_goal_topic}", self._on_user_goal, 10)
-        self.sub_detect2d = self.create_subscription(Detection2DArray, self.detection_topic, self._on_det2d, 10)
+        self.sub_detect2d = self.create_subscription(Detection2DArray, self.detection_topic, self._on_det, 10)
 
         self.get_logger().info(
             f"bt_coordinator up. Using Detection2DArray on '{self.detection_topic}'. "
@@ -73,6 +73,14 @@ class BTCoordinator(Node):
         self._wait_for_service(self.srv_pause, "/slam/pause")
         self._wait_for_service(self.srv_resume, "/slam/resume")
         self._wait_for_service(self.srv_reset_batt, "/reset_battery")
+
+        # remmebr to move up top later for consistnacy lol
+        self.global_goal_topic = self.declare_parameter(
+            "global_goal_topic", "/static_path/goal"
+        ).get_parameter_value().string_value
+        self.pub_global_goal = self.create_publisher(PoseStamped, self.global_goal_topic, 10)
+
+        self.global_paths = set()
 
     def _wait_for_service(self, client, name):
         if not client.service_is_ready():
@@ -140,7 +148,28 @@ class BTCoordinator(Node):
         self._pause_slam()
         self._send_nav_goal(pose, target_state=self.ST_TO_MANUAL)
 
-    def _on_det2d(self, arr: Detection2DArray):
+    def _publish_static_goal(self, x: float, y: float, frame: str):
+        msg = PoseStamped()
+        msg.header.frame_id = frame
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.pose.position.x = x
+        msg.pose.position.y = y
+        msg.pose.position.z = 0.0
+
+        q = Quaternion()
+        q.x = 0.0
+        q.y = 0.0
+        q.z = 0.0
+        q.w = 1.0
+        msg.pose.orientation = q
+
+        self.pub_global_goal.publish(msg)
+        self.get_logger().info(
+            f"Published static path goal at ({x:.2f}, {y:.2f}) to {self.global_goal_topic}"
+        )
+
+
+    def _on_det(self, arr: Detection2DArray):
         # ignore if we're not in exploration or if suppressed
         if self._should_ignore_detections():
             return
@@ -169,6 +198,11 @@ class BTCoordinator(Node):
 
             x, y = float(p.x), float(p.y)
             yaw_det = yaw_from_quat(o)
+
+            pt = (round(x),round(y))
+            if pt not in self.global_paths:
+                self._publish_static_goal(x, y, frame)
+                self.global_paths.add(pt)
 
             ax = x - self.approach_distance * math.cos(yaw_det)
             ay = y - self.approach_distance * math.sin(yaw_det)
