@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="3">
+<name>Husky_GUI</name>
+<version>0.0.0</version>
+<description>Qt GUI for Husky robot control</description>
+
+  <maintainer email="Melroop.S.Nijjar@student.uts.edu.au">Melroop S. Nijjar</maintainer>
+<license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- ROS deps -->
+<depend>rclcpp</depend>
+<depend>geometry_msgs</depend>
+<depend>nav_msgs</depend>
+<depend>sensor_msgs</depend>
+<depend>cv_bridge</depend>
+<depend>image_transport</depend>
+
+  <!-- System deps via rosdep keys (Jammy/Humble) -->
+<build_depend>qtbase5-dev</build_depend>
+<exec_depend>qtbase5-dev</exec_depend>
+
+  <build_depend>libopencv-dev</build_depend>
+<exec_depend>libopencv-dev</exec_depend>
+
+  <export>
+<build_type>ament_cmake</build_type>
+</export>
+</package>
