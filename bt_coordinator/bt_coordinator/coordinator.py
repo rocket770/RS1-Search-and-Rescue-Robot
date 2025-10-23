@@ -16,6 +16,7 @@ from vision_msgs.msg import Detection2DArray  # 2D-only
 
 from nav2_msgs.msg import SpeedLimit
 
+from geometry_msgs.msg import Twist
 
 def yaw_from_quat(q: Quaternion) -> float:
     ysqr = q.y * q.y
@@ -49,6 +50,8 @@ class BTCoordinator(Node):
         self.battery_threshold = float(self.declare_parameter("battery_threshold", 0.30).value)
         self.home_pose_xy = tuple(self.declare_parameter("home_pose_xy", [0.0, 0.0]).value)  # [x, y]
         self.post_manual_resume_suppress_secs = int(self.declare_parameter("post_manual_resume_suppress_secs", 8).value)
+        self.cmd_vel_topic = self.declare_parameter("cmd_vel_topic", "/cmd_vel").get_parameter_value().string_value
+        self.ui_move_topic = self.declare_parameter("ui_move_topic", "/ui/move").get_parameter_value().string_value
 
         self.state = self.ST_EXPLORE
         self.visited_classes: Set[str] = set()
@@ -66,6 +69,7 @@ class BTCoordinator(Node):
         self.sub_battery = self.create_subscription(BatteryState, "/battery_state", self._on_battery, 10)
         self.sub_goal = self.create_subscription(PoseStamped, f"/{self.bt_goal_topic}", self._on_user_goal, 10)
         self.sub_detect2d = self.create_subscription(Detection2DArray, self.detection_topic, self._on_det, 10)
+        self.sub_ui_move = self.create_subscription(Twist, self.ui_move_topic, self._on_ui_move, 5)
 
         self._wait_for_service(self.srv_pause, "/slam/pause")
         self._wait_for_service(self.srv_resume, "/slam/resume")
@@ -76,6 +80,8 @@ class BTCoordinator(Node):
             "global_goal_topic", "/static_path/goal"
         ).get_parameter_value().string_value
         self.pub_global_goal = self.create_publisher(PoseStamped, self.global_goal_topic, 10)
+
+        self.pub_cmd_vel = self.create_publisher(Twist, self.cmd_vel_topic, 10)
 
         self.global_paths = set()
 
@@ -93,6 +99,8 @@ class BTCoordinator(Node):
             "States: explore → (to_detection | to_manual | to_dock) → wait_resume."
         )
 
+        self._manual_paused_once = False
+
 
     def _wait_for_service(self, client, name):
         if not client.service_is_ready():
@@ -102,12 +110,15 @@ class BTCoordinator(Node):
             self.get_logger().info(f"Connected to {name}")
         else:
             self.get_logger().warn(f"{name} not available yet — continuing (calls will fail until it appears).")
-
+    
+    # lil helper that wraps calls, returns true if call completed and server responsed with success
     def call_trigger(self, client) -> bool:
         if not client.service_is_ready():
             self.get_logger().warn("Service not ready")
             return False
         future = client.call_async(Trigger.Request())
+
+        # block until done or 3s have passed
         rclpy.spin_until_future_complete(self, future, timeout_sec=3.0)
         if future.result() is None:
             self.get_logger().warn("Trigger call timed out")
@@ -117,14 +128,36 @@ class BTCoordinator(Node):
             self.get_logger().warn(f"Trigger call failed: {future.result().message}")
         return ok
 
+    # helper so we can check if response is empty or not (call reutrns empty yes/no)
     def call_empty(self, client) -> bool:
+        # no point checking if we can't find the service
         if not client.service_is_ready():
             self.get_logger().warn("Service not ready")
             return False
+        
         future = client.call_async(Empty.Request())
         rclpy.spin_until_future_complete(self, future, timeout_sec=3.0)
         return future.result() is not None
     
+    def _on_ui_move(self, msg: Twist):
+        # First manual twist we cancel Nav2, pause SLAM once, move to WAIT_RESUME
+        if not self._manual_paused_once:
+            # If speed was reduced for an approach, restore full speed 
+            if self._speed_reduced:
+                self._set_speed_percentage(1.0)
+                self._speed_reduced = False
+
+            self.get_logger().info("UI move pausing...")
+            self._preempt_everything()
+            self._pause_slam()
+            self.state = self.ST_WAIT_RESUME
+            self._manual_paused_once = True
+
+        self.pub_cmd_vel.publish(msg)
+
+    def _is_valid_vel(self, t: Twist) -> bool:        
+        return (abs(t.linear.x) > 1e-3 or abs(t.linear.y) > 1e-3 or abs(t.linear.z) > 1e-3 or abs(t.angular.x) > 1e-3 or abs(t.angular.y) > 1e-3 or abs(t.angular.z) > 1e-3)
+
     def _set_speed_percentage(self, pct: float):
         self.get_logger().info(f"Setting speed: '{pct}'. ")
         msg = SpeedLimit()
@@ -133,7 +166,7 @@ class BTCoordinator(Node):
         self.pub_speed_limit.publish(msg)
         
     def _on_user_resume(self, req, resp):
-        if self.state != self.ST_WAIT_RESUME:
+        if self.state != self.ST_WAIT_RESUME and not self._manual_paused_once:
             resp.success = True
             resp.message = "Already exploring or busy but resuming anyway."
             return resp
@@ -141,9 +174,12 @@ class BTCoordinator(Node):
         resumed = self.call_trigger(self.srv_resume)
         if resumed:
             self.state = self.ST_EXPLORE
+            self._manual_paused_once = False
+
             now = time.time()
             if now > self.suppress_detections_until:
                 self.suppress_detections_until = now + float(self.post_manual_resume_suppress_secs)
+
             resp.success = True
             resp.message = "Exploration resumed."
             if self._speed_reduced == True:
@@ -155,7 +191,7 @@ class BTCoordinator(Node):
         return resp
 
     def _on_battery(self, msg: BatteryState):
-        if msg.percentage != msg.percentage:  # NaN guard
+        if msg.percentage != msg.percentage:  #nan thigny
             return
         if msg.percentage < self.battery_threshold:
             if self.state != self.ST_TO_DOCK:
