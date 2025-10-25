@@ -163,6 +163,7 @@ class YoloDetectorNode(Node):
 
         det_array = Detection2DArray()
         det_array.header = rgb_msg.header  
+        det_array.header.frame_id = self.target_frame # set to target frame fixing
         annotated = color.copy()
 
         any_global_added = False  # track if we added to the persistent array this frame
@@ -205,6 +206,7 @@ class YoloDetectorNode(Node):
                 #only now make per-frame detection (for the image overlay topic)
                 det = Detection2D()
                 det.header = rgb_msg.header
+                det.header.frame_id = self.target_frame   # set to target frame fixing
 
                 hyp = ObjectHypothesisWithPose()
                 hyp.hypothesis.class_id = label_name
@@ -336,3 +338,4 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
+
