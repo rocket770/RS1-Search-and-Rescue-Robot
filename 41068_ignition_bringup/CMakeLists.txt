@@ -19,9 +19,11 @@ install(DIRECTORY yolo
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(FILES worlds/large_demo.sdf
+install(FILES worlds/large.sdf
         DESTINATION share/${PROJECT_NAME}/worlds)
 
+install(FILES worlds/extra_large.sdf
+        DESTINATION share/${PROJECT_NAME}/worlds)        
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
