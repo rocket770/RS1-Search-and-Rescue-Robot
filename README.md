@@ -6,34 +6,7 @@ Package provides:
 - Cartographer 3D mapping (not Nav2 compatible; (high fidelity iteration)
 - /map and /map_updates for RViz and map saving
 
-------------------------------------------------------------
-DEPENDENCIES
-------------------------------------------------------------
 
-Required ROS 2 packages (Humble):
-
-```bash
-  sudo apt install 
-  ros-humble-cartographer-ros
-  sudo apt install ros-humble-nav2-bringup
-  sudo apt install ros-humble-robot-localization
-  sudo apt install ros-humble-ros-ign-gazebo
-  sudo apt install ros-humble-ros-ign-bridge
-  sudo apt install ros-humble-xacro
-  sudo apt install ros-humble-rviz2
-```
-
-(install missing packages)
-
-------------------------------------------------------------
-1. BUILD AND SOURCE THE WORKSPACE
-------------------------------------------------------------
-
-```bash
-cd ~/41068_ws
-colcon build --symlink-install
-source install/setup.bash
-```
 # 41068_Ignition_Bringup – Cartographer_2d_3d_Integrated
 
 Package provides:
@@ -44,7 +17,7 @@ Package provides:
 - /map and /map_updates for RViz and map saving
 
 ------------------------------------------------------------
-DEPENDENCIES
+Dependencies
 ------------------------------------------------------------
 
 Required ROS 2 packages (Humble):
