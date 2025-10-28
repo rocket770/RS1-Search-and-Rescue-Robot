@@ -26,7 +26,7 @@ sudo apt install \
 (install missing packages)
 
 ------------------------------------------------------------
-1. Build and Source the Workspace
+1. BUILD/SOURCE WORKSPACE
 ------------------------------------------------------------
 
 ```bash
@@ -36,7 +36,7 @@ source install/setup.bash
 ```
 
 ------------------------------------------------------------
-2. First Launch and Select Cartographer Mode (2D or 3D)
+2. FIRST LAUNCH/SELECT CARTOGRAPHER MODE I.E. 2D/3D
 ------------------------------------------------------------
 Two modes:
 
@@ -57,7 +57,7 @@ ros2 launch 41068_ignition_bringup 41068_cartographer_mode.launch.py mode:=3d
 
 
 ------------------------------------------------------------
-2. Launch Simulation in Large Demo Forest (Husky and Ignition)
+2. LAUNCH SIMULATION I.E. LARGE DEMO FOREST/HUSKY/IGNITION
 ------------------------------------------------------------
 
 
@@ -77,7 +77,7 @@ world:=large_demo
 ```
 
 ------------------------------------------------------------
-4. Mapping Only Nodes
+4. MAPPING ONLY NODES
 ------------------------------------------------------------
 
 2D only:
