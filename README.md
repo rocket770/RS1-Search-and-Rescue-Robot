@@ -63,11 +63,7 @@ ros2 launch 41068_ignition_bringup 41068_cartographer_mode.launch.py mode:=3d
 
 This launches:
 - Gazebo world
-- Robot State Publisher
-- Robot Localization (EKF)
-- ROS-Ignition topic bridges
 - RViz
-- Nav2 in 2D LIDAR Mapping Cartographer Mode
 
 Example:
 ```bash
