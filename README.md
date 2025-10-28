@@ -12,6 +12,7 @@ DEPENDENCIES
 ------------------------------------------------------------
 
 Required ROS 2 packages (Humble):
+
   sudo apt install ros-humble-cartographer-ros
   sudo apt install ros-humble-nav2-bringup
   sudo apt install ros-humble-robot-localization
