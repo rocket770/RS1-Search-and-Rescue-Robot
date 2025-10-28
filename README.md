@@ -12,13 +12,13 @@ DEPENDENCIES
 ------------------------------------------------------------
 
 Required ROS 2 packages (Humble):
-sudo apt install ros-humble-cartographer-ros
-sudo apt install ros-humble-nav2-bringup
-sudo apt install ros-humble-robot-localization
-sudo apt install ros-humble-ros-ign-gazebo
-sudo apt install ros-humble-ros-ign-bridge
-sudo apt install ros-humble-xacro
-sudo apt install ros-humble-rviz2
+  sudo apt install ros-humble-cartographer-ros
+  sudo apt install ros-humble-nav2-bringup
+  sudo apt install ros-humble-robot-localization
+  sudo apt install ros-humble-ros-ign-gazebo
+  sudo apt install ros-humble-ros-ign-bridge
+  sudo apt install ros-humble-xacro
+  sudo apt install ros-humble-rviz2
 
 (install missing packages)
 
