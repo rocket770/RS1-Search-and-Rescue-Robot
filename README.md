@@ -6,16 +6,6 @@ Package provides:
 - Cartographer 3D mapping (not Nav2 compatible; (high fidelity iteration)
 - /map and /map_updates for RViz and map saving
 
-
-# 41068_Ignition_Bringup – Cartographer_2d_3d_Integrated
-
-Package provides:
-- Ignition Gazebo simulation for Husky in Large Demo Environment
-- Robot localization (EKF → odom → base_link)
-- Cartographer 2D mapping with Nav2 (low fidelity iteration)
-- Cartographer 3D mapping (not Nav2 compatible; (high fidelity iteration)
-- /map and /map_updates for RViz and map saving
-
 ------------------------------------------------------------
 Dependencies
 ------------------------------------------------------------
