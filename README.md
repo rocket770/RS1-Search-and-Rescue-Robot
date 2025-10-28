@@ -1,31 +1,77 @@
-Hey guys, to use the yolo detector, which runs automatically FOR THE INGITION LAUNCH ONLY now you need to do the following:
+# 41068_Ignition_Bringup – Cartographer_2d_3d_Integrated
 
-Install PIP
+Package provides:
+- Ignition Gazebo simulation for Husky in Large Demo Environment
+- Robot localization (EKF → odom → base_link)
+- Cartographer 2D mapping with Nav2 (low fidelity iteration)
+- Cartographer 3D mapping (not Nav2 compatible; (high fidelity iteration)
+- /map and /map_updates for RViz and map saving
 
-	sudo apt install python3-pip
-Install deps
+------------------------------------------------------------
+DEPENDENCIES
+------------------------------------------------------------
 
-	# Remove the too-new version
-	python3 -m pip uninstall -y numpy
-	# Reinstall a version < 2.0 (safe with cv_bridge)
-	python3 -m pip install "numpy<2.0" --user --upgrade
+Required ROS 2 packages (Humble):
+sudo apt install ros-humble-cartographer-ros
+sudo apt install ros-humble-nav2-bringup
+sudo apt install ros-humble-robot-localization
+sudo apt install ros-humble-ros-ign-gazebo
+sudo apt install ros-humble-ros-ign-bridge
+sudo apt install ros-humble-xacro
+sudo apt install ros-humble-rviz2
 
-	pip3 install ultralytics 
-	python3 -m pip install "opencv-python<=4.8.1.78" --user
+(install missing packages)
 
-	# for gpu (untested)
-	pip3 install torch 
-	pip3 install torchvision 
-	pip3 install torchaudio 
-	
-	#for cpu
-	python3 -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+------------------------------------------------------------
+1. BUILD AND SOURCE THE WORKSPACE
+------------------------------------------------------------
 
-Vis YOlo model
-	ros2 run rqt_image_view rqt_image_view
+cd ~/41068_ws
+colcon build --symlink-install
+source install/setup.bash
+
+------------------------------------------------------------
+2. FIRST LAUNCH AND SELECT CARTOGRAPHER MODE (2D OR 3D)
+------------------------------------------------------------
+Two modes:
+2d  → LIDAR LaserScan, supports Nav2 global planner
+3d  → Depth point cloud, mapping only until more robust 3D implementation (Nav2 cannot use 3D map)
+
+Launch 2D mapping:
+ros2 launch 41068_ignition_bringup 41068_cartographer_mode.launch.py mode:=2d
+
+Launch 3D mapping:
+ros2 launch 41068_ignition_bringup 41068_cartographer_mode.launch.py mode:=3d
 
 
-TO run
-	colcon build --symlink-install
- 	source ~/41068_ws/install/setup.bash
-	ros2 launch 41068_ignition_bringup 41068_ignition.launch.py nav2:=true rviz:=true
+------------------------------------------------------------
+2. LAUNCH SIMULATION (HUSKY + IGNITION) IN LARGE DEMO FOREST
+------------------------------------------------------------
+
+
+This launches:
+- Gazebo world
+- Robot State Publisher
+- Robot Localization (EKF)
+- ROS-Ignition topic bridges
+- RViz
+- Nav2 in 2D LIDAR Mapping Cartographer Mode
+
+Example:
+ros2 launch 41068_ignition_bringup 41068_ignition.launch.py rviz:=True nav2:=False world:=large_demo
+
+Available worlds:
+world:=simple_trees
+world:=large_demo
+
+------------------------------------------------------------
+4. STAND-ALONE MAPPING NODES
+------------------------------------------------------------
+
+2D only:
+ros2 launch 41068_ignition_bringup 41068_cartographer2d.launch.py
+
+3D only:
+ros2 launch 41068_ignition_bringup 41068_cartographer3d.launch.py
+
+------------------------------------------------------------
