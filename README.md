@@ -26,7 +26,7 @@ sudo apt install \
 (install missing packages)
 
 ------------------------------------------------------------
-1. BUILD AND SOURCE THE WORKSPACE
+1. Build and Source the Workspace
 ------------------------------------------------------------
 
 ```bash
@@ -36,11 +36,11 @@ source install/setup.bash
 ```
 
 ------------------------------------------------------------
-2. FIRST LAUNCH AND SELECT CARTOGRAPHER MODE (2D OR 3D)
+2. First Launch and Select Cartographer Mode (2D or 3D)
 ------------------------------------------------------------
 Two modes:
 
-2d  → LIDAR LaserScan, supports Nav2 global planner
+2d  → LIDAR LaserScan, supports Nav2 global planner i.e. may integrate Nav2 using this mode
 
 3d  → Depth point cloud, mapping only until more robust 3D implementation (Nav2 cannot use 3D map)
 
@@ -57,7 +57,7 @@ ros2 launch 41068_ignition_bringup 41068_cartographer_mode.launch.py mode:=3d
 
 
 ------------------------------------------------------------
-2. LAUNCH SIMULATION (HUSKY + IGNITION) IN LARGE DEMO FOREST
+2. Launch Simulation in Large Demo Forest (Husky and Ignition)
 ------------------------------------------------------------
 
 
@@ -77,7 +77,7 @@ world:=large_demo
 ```
 
 ------------------------------------------------------------
-4. STAND-ALONE MAPPING NODES
+4. Mapping Only Nodes
 ------------------------------------------------------------
 
 2D only:
