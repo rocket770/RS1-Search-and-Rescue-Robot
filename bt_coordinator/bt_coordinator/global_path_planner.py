@@ -111,9 +111,13 @@ class GlobalPathPlanner(Node):
         result = future.result().result
         path: Path = result.path
 
+        now = self.get_clock().now().to_msg()
+
         if not path.header.frame_id:
             path.header.frame_id = self.frame_id
 
+        path.header.stamp = now
+        
         self.path_pub.publish(path)
 
         self.marker_id += 1

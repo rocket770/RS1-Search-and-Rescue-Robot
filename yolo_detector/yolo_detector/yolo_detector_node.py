@@ -114,7 +114,7 @@ class YoloDetectorNode(Node):
         self.declare_parameter('iou_thres', 0.5)
         self.declare_parameter('target_frame', 'map')
 
-        self.declare_parameter('ign_topic', '/world/large_demo/pose/info')
+        self.declare_parameter('ign_topic', '/world/large/pose/info')
         self.declare_parameter('ign_cli', 'ign')  
 
         self.declare_parameter('name_aliases', '')
@@ -207,6 +207,7 @@ class YoloDetectorNode(Node):
         return arr
 
     def cb(self, rgb_msg: Image):
+     
         # Convert ROS to OpenCV
         try:
             color = self.bridge.imgmsg_to_cv2(rgb_msg, "bgr8")
@@ -235,9 +236,15 @@ class YoloDetectorNode(Node):
 
         for r in results:
             if not getattr(r, "boxes", None) or len(r.boxes) == 0:
+                self.get_logger().info(
+                    f"skipping boxes {r.boxes}"
+                )
                 continue
+
             names = getattr(r, "names", None) or getattr(self.model, "names", {}) or {}
             for box in r.boxes:
+
+
                 cls_id = int(box.cls[0])
                 label_name = names.get(cls_id, str(cls_id))
                 conf = float(box.conf[0])
@@ -247,9 +254,14 @@ class YoloDetectorNode(Node):
                 # --- lk up world pose by entity name from Ignition/Gazebo ---
                 ign_name = self.name_alias.get(label_name, label_name)
                 xyz = self.pose_watcher.get_xyz(ign_name)
+                
                 if xyz is None:
                     # no pose available with that name in the current Pose_V stream
+                    self.get_logger().info(
+                        f"found box but could not find pose {label_name} with ign_name {ign_name}"
+                    )
                     continue
+
                 world_x, world_y, world_z = xyz
 
                 out = PoseStamped()
