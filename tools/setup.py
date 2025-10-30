@@ -22,6 +22,8 @@ setup(
         'console_scripts': [
             'toggle_time_node = tools.toggle_time_node:main',
             'night_vision_camera_node = tools.night_vision_camera_node:main'
+            'cloud_accumulator = tools.cloud_accumulator:main'
+
         ],
     },
 )

@@ -263,4 +263,21 @@ def generate_launch_description():
     )
     ld.add_action(tools_nv)
 
+    tools_cloud = Node(
+        package='tools',
+        executable='cloud_accumulator',
+        name='cloud_accumulator',
+        output='screen',
+        parameters=[{
+            'input_topic': '/camera/depth/points',
+            'output_topic': '/accumulated_cloud',
+            'target_frame': 'map',
+            'publish_rate': 0.5,
+            'stride': 4,
+            'tf_cache_sec': 0.2,
+        }]
+    )
+    ld.add_action(tools_cloud)
+
+
     return ld
