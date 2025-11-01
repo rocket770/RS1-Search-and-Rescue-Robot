@@ -1,13 +1,15 @@
+
 # 41068_Ignition_Bringup – Cartographer_2d_3d_Integrated
 
 Package provides:
 - Ignition Gazebo simulation for Husky in Large Demo Environment
+- Robot localization (EKF → odom → base_link)
 - Cartographer 2D mapping with Nav2 (low fidelity iteration)
 - Cartographer 3D mapping (not Nav2 compatible; (high fidelity iteration)
 - /map and /map_updates for RViz and map saving
 
 ------------------------------------------------------------
-Dependencies
+DEPENDENCIES
 ------------------------------------------------------------
 
 Required ROS 2 packages (Humble):
@@ -26,7 +28,7 @@ sudo apt install \
 (install missing packages)
 
 ------------------------------------------------------------
-1. BUILD/SOURCE WORKSPACE
+1. BUILD AND SOURCE THE WORKSPACE
 ------------------------------------------------------------
 
 ```bash
@@ -36,11 +38,11 @@ source install/setup.bash
 ```
 
 ------------------------------------------------------------
-2. FIRST LAUNCH/SELECT CARTOGRAPHER MODE I.E. 2D/3D
+2. FIRST LAUNCH AND SELECT CARTOGRAPHER MODE (2D OR 3D)
 ------------------------------------------------------------
 Two modes:
 
-2d  → LIDAR LaserScan, supports Nav2 global planner i.e. may integrate Nav2 using this mode
+2d  → LIDAR LaserScan, supports Nav2 global planner
 
 3d  → Depth point cloud, mapping only until more robust 3D implementation (Nav2 cannot use 3D map)
 
@@ -57,13 +59,17 @@ ros2 launch 41068_ignition_bringup 41068_cartographer_mode.launch.py mode:=3d
 
 
 ------------------------------------------------------------
-2. LAUNCH SIMULATION I.E. LARGE DEMO FOREST/HUSKY/IGNITION
+3. LAUNCH SIMULATION (HUSKY + IGNITION) IN LARGE DEMO FOREST
 ------------------------------------------------------------
 
 
 This launches:
 - Gazebo world
+- Robot State Publisher
+- Robot Localization (EKF)
+- ROS-Ignition topic bridges
 - RViz
+- Nav2 in 2D LIDAR Mapping Cartographer Mode
 
 Example:
 ```bash
@@ -77,7 +83,29 @@ world:=large_demo
 ```
 
 ------------------------------------------------------------
-4. MAPPING ONLY NODES
+4. MAPPING
+------------------------------------------------------------
+
+Use keyboard keys to cover desired mapping area (while cartographer is active):
+```bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+```
+
+Save recent mapping:
+```bash
+ros2 run nav2_map_server map_saver_cli -- -f ~/my_map
+```
+
+Preview recently made map:
+```bash
+ros2 run nav2_map_server map_saver_cli -- --help
+eog ~/my_map.pgm
+```
+
+------------------------------------------------------------
+
+------------------------------------------------------------
+5. STAND-ALONE MAPPING NODES
 ------------------------------------------------------------
 
 2D only:
