@@ -1,0 +1,20 @@
+newmtl Man_Man
+
+# Base color / diffuse map
+map_Kd Man_Man_BaseColor.png
+
+# Normal map
+map_Bump Man_Man_Normal.png
+bump Man_Man_Normal.png
+
+# Height / displacement map
+disp Man_Man_Height.png
+
+# Roughness map
+map_Ns Man_Man_Roughness.png
+
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 1.0
+illum 2

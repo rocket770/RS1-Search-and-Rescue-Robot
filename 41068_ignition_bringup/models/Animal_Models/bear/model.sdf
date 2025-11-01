@@ -1,0 +1,37 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="bearv1">
+    <static>true</static>
+    <link name="bear_link">
+
+      <!-- Visual representation -->
+      <visual name="bear_visual">
+        <geometry>
+          <mesh>
+            <uri>package://41068_ignition_bringup/models/Animal_Models/bear/meshes/bearv1/bearv1.obj</uri>
+            <scale>0.5 0.5 0.5</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <!-- Collision geometry -->
+      <collision name="bear_collision">
+        <geometry>
+          <mesh>
+            <uri>package://41068_ignition_bringup/models/Animal_Models/bear/meshes/bearv1/bearv1.obj</uri>
+            <scale>0.5 0.5 0.5</scale>
+          </mesh>
+        </geometry>
+      </collision>
+
+      <material>
+        <pbr>
+          <metal>
+            <albedo_map>package://41068_ignition_bringup/models/Animal_Models/bear/meshes/bearv1/texture.png</albedo_map>
+          </metal>
+        </pbr>
+      </material>
+
+    </link>
+  </model>
+</sdf>
