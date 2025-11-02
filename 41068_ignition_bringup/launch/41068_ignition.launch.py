@@ -8,7 +8,6 @@ from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import PathJoinSubstitution
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import TextSubstitution
 
 
 
@@ -83,7 +82,7 @@ def generate_launch_description():
 
     world_launch_arg = DeclareLaunchArgument(
         'world',
-        default_value='large',
+        default_value='simple_trees',
         description='Which world to load',
         choices=['simple_trees', 'large', 'extra_large']
     )
@@ -166,14 +165,6 @@ def generate_launch_description():
        FindPackageShare('41068_ignition_bringup'), 'yolo', 'weights', 'best_stable_best_result.pt'
     ])
 
-    world = LaunchConfiguration('world')
-
-    ign_pose_topic = PathJoinSubstitution([
-        TextSubstitution(text='/world'),
-        world,
-        TextSubstitution(text='pose/info'),
-    ])
-
     yolo_node = Node(
         package='yolo_detector',             
         executable='yolo_detector_node',  
@@ -187,8 +178,7 @@ def generate_launch_description():
             'target_frame': 'map',
             'use_sim_time': use_sim_time,
             'conf_thres': 0.60,
-            'iou_thres': 0.60,
-            'ign_topic': ign_pose_topic
+            'iou_thres': 0.60
         }],
         condition=IfCondition(LaunchConfiguration('yolo'))
     )
@@ -262,22 +252,5 @@ def generate_launch_description():
         }]
     )
     ld.add_action(tools_nv)
-
-    tools_cloud = Node(
-        package='tools',
-        executable='cloud_accumulator',
-        name='cloud_accumulator',
-        output='screen',
-        parameters=[{
-            'input_topic': '/camera/depth/points',
-            'output_topic': '/accumulated_cloud',
-            'target_frame': 'map',
-            'publish_rate': 0.5,
-            'stride': 4,
-            'tf_cache_sec': 0.2,
-        }]
-    )
-    ld.add_action(tools_cloud)
-
 
     return ld
