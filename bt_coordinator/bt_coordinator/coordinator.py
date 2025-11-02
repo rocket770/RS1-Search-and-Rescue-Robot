@@ -20,6 +20,9 @@ from geometry_msgs.msg import Twist
 
 from std_msgs.msg import Bool 
 
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+
+from collections import deque
 
 def yaw_from_quat(q: Quaternion) -> float:
     ysqr = q.y * q.y
@@ -52,12 +55,14 @@ class BTCoordinator(Node):
         self.approach_distance = float(self.declare_parameter("approach_distance", 2.0).value)
         self.battery_threshold = float(self.declare_parameter("battery_threshold", 0.30).value)
         self.home_pose_xy = tuple(self.declare_parameter("home_pose_xy", [0.0, 0.0]).value)  # [x, y]
-        self.post_manual_resume_suppress_secs = int(self.declare_parameter("post_manual_resume_suppress_secs", 8).value)
+        self.post_manual_resume_suppress_secs = int(self.declare_parameter("post_manual_resume_suppress_secs", 1).value)
         self.cmd_vel_topic = self.declare_parameter("cmd_vel_topic", "/cmd_vel").get_parameter_value().string_value
         self.ui_move_topic = self.declare_parameter("ui_move_topic", "/ui/move").get_parameter_value().string_value
 
+        self.detection_memory = float(self.declare_parameter("detection_memory", 2).value)
+
         self.state = self.ST_EXPLORE
-        self.visited_classes: Set[str] = set()
+        self.visited_classes = deque(maxlen=self.detection_memory)   
         self.suppress_detections_until = 0.0
         self.active_goal_id = None
 
@@ -74,8 +79,13 @@ class BTCoordinator(Node):
 
         self._wait_for_service(self.srv_reset_batt, "/reset_battery")
 
-        self.pub_explore_resume = self.create_publisher(Bool, "/explore/resume", 10)
+        qos = QoSProfile(
+            depth=1,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL
+        )
 
+        self.pub_explore_resume = self.create_publisher(Bool, "/explore/resume", qos)
 
         # remmebr to move up top later for consistnacy lol
         self.global_goal_topic = self.declare_parameter(
@@ -102,7 +112,7 @@ class BTCoordinator(Node):
         )
 
         self._manual_paused_once = False
-
+        self._explore_was_paused = False
 
     def _wait_for_service(self, client, name):
         if not client.service_is_ready():
@@ -170,14 +180,22 @@ class BTCoordinator(Node):
     def _on_user_resume(self, req, resp):
         self._resume_explore()
         self.state = self.ST_EXPLORE
+
+        if self._manual_paused_once:
+            now = time.time()
+            self.suppress_detections_until = now + float(self.post_manual_resume_suppress_secs)
+        else:
+            # resume after an auto-detection: allow new detections immediately
+            self.suppress_detections_until = 0.0
+
         self._manual_paused_once = False
-        now = time.time()
-        self.suppress_detections_until = now + float(self.post_manual_resume_suppress_secs)
+
         resp.success = True
         resp.message = "Exploration resumed."
         if self._speed_reduced:
             self._set_speed_percentage(1.0)
             self._speed_reduced = False
+            
         return resp
 
     def _on_battery(self, msg: BatteryState):
@@ -225,6 +243,9 @@ class BTCoordinator(Node):
     def _on_det(self, arr: Detection2DArray):
         # ignore if we're not in exploration or if suppressed
         if self._should_ignore_detections():
+            self.get_logger().info(
+                f"                      Ignored----------------------------------------------------------------------------------------------------------------------"
+            )
             return
         
         frame = getattr(arr.header, "frame_id", "") or self.map_frame
@@ -262,8 +283,9 @@ class BTCoordinator(Node):
             ayaw = math.atan2(y - ay, x - ax)
 
             self.get_logger().info(
-                f"Detection '{cls}' at ({x:.2f},{y:.2f}); approaching to ({ax:.2f},{ay:.2f})."
+                f"                      Detection '{cls}' at ({x:.2f},{y:.2f}); approaching to ({ax:.2f},{ay:.2f}).           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
             )
+
             self._preempt_everything()
             self._pause_explore()
 
@@ -282,9 +304,17 @@ class BTCoordinator(Node):
             break  # handle one at a time
 
     def _should_ignore_detections(self) -> bool:
+
         if self.state in (self.ST_TO_MANUAL, self.ST_TO_DOCK, self.ST_WAIT_RESUME):
+            self.get_logger().info(
+                f"                      DATA!!! in state {self.state}"
+            )
             return True
-        if time.time() < self.suppress_detections_until:
+        t = time.time()
+        if t < self.suppress_detections_until:
+            self.get_logger().info(
+                f"                      DATA!!! TIMMME {self.suppress_detections_until-t}"
+            )
             return True
         return False
 
@@ -300,13 +330,18 @@ class BTCoordinator(Node):
         msg = Bool()
         msg.data = False
         self.pub_explore_resume.publish(msg)
+        self._explore_was_paused = True        
         self.get_logger().info("Sent False to /explore/resume")
+        time.sleep(1)
+
 
     def _resume_explore(self) -> bool:
         msg = Bool()
         msg.data = True
         self.pub_explore_resume.publish(msg)
         self.get_logger().info("Sent True to /explore/resume")
+        self._explore_was_paused = False        
+
         return True
 
     def _send_nav_goal(self, pose: PoseStamped, target_state: str, detection_class: Optional[str] = None):
@@ -332,13 +367,24 @@ class BTCoordinator(Node):
     def _on_nav_result(self, r_fut, detection_class: Optional[str]):
         status = r_fut.result().status
         self.get_logger().info(f"Nav result status: {status}")
-        if self.state == self.ST_TO_DETECTION and detection_class:
-            self.visited_classes.add(detection_class)
-        if self.state == self.ST_TO_DOCK:
+
+        prev_state = self.state  # remember what this goal was for
+
+        if prev_state == self.ST_TO_DETECTION and detection_class:
+            self.visited_classes.append(detection_class)
+
+        if prev_state == self.ST_TO_DOCK:
             self.get_logger().info("At home; calling /reset_battery ...")
             self.call_empty(self.srv_reset_batt)
-        self.state = self.ST_WAIT_RESUME
-        self.get_logger().info("Waiting for /user/resume_explore")
+
+        # only go to WAIT_RESUME if we had actually paused explore
+        if self._explore_was_paused:
+            self.state = self.ST_WAIT_RESUME
+            self.get_logger().info("Waiting for /user/resume_explore")
+        else:
+            self.state = self.ST_EXPLORE
+            self.get_logger().info("Nav done; staying in explore.")
+
 
     def _go_to_home(self):
         home = PoseStamped()

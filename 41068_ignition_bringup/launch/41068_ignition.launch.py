@@ -192,7 +192,8 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'conf_thres': 0.60,
             'iou_thres': 0.60,
-            'ign_topic': ign_pose_topic
+            'ign_topic': ign_pose_topic,
+            "detection_memory": 2
         }],
         condition=IfCondition(LaunchConfiguration('yolo'))
     )

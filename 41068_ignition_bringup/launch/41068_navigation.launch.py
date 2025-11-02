@@ -33,8 +33,9 @@ def generate_launch_description():
         PathJoinSubstitution([FindPackageShare('nav2_bringup'), 'launch', 'navigation_launch.py']),
         launch_arguments={
             'use_sim_time': use_sim_time,
-            'params_file': PathJoinSubstitution([config_path, 'nav2_params.yaml'])
+            'params_file': PathJoinSubstitution([config_path, 'nav2_params.yaml']),
         }.items()
+        
     )
 
     ld.add_action(use_sim_time_launch_arg)
