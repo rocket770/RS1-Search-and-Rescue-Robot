@@ -119,7 +119,7 @@
         <pose frame=''>0 0 0 0 -0 0</pose>
         <geometry>
           <mesh>
-            <uri>package://41068_ignition_bringup/models/linea2/meshes/post/postes2.da</uri>
+            <uri>package://41068_ignition_bringup/models/linea2/meshes/post/postes2.dae</uri>
             <scale>0.03 0.03 0.03</scale>
           </mesh>
         </geometry>
