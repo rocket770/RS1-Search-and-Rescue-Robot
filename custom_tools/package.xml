@@ -7,8 +7,6 @@
   <maintainer email="skrillx789@hotmail.com">nick</maintainer>
   <license>TODO: License declaration</license>
 
-  <buildtool_depend>ament_python</buildtool_depend>
-
   <buildtool_depend>ament_cmake</buildtool_depend>
 
 
@@ -25,9 +23,7 @@
   <depend>tf2_sensor_msgs</depend>
   <depend>rclpy</depend>
 
-
   <export>
-    <build_type>ament_python</build_type>
     <build_type>ament_cmake</build_type>
   </export>
 </package>
