@@ -21,11 +21,11 @@ class BatterySimNode(Node):
 
 
         self.declare_parameter('initial_percentage', 100.0)     
-        self.declare_parameter('idle_drain_per_hour', 60.0)      # % / hour
-        self.declare_parameter('linear_drain_per_meter', 0.1)  # % / meter
-        self.declare_parameter('angular_drain_per_rad', 0.2)  # % / rad
+        self.declare_parameter('idle_drain_per_hour', 600.0)      # % / hour
+        self.declare_parameter('linear_drain_per_meter', 0.4)  # % / meter
+        self.declare_parameter('angular_drain_per_rad', 0.5)  # % / rad
         self.declare_parameter('publish_topic', 'battery_state')
-        self.declare_parameter('publish_rate_hz', 0.05)
+        self.declare_parameter('publish_rate_hz', 0.5)
         self.declare_parameter('velocity_topic', '/cmd_vel') 
         self.declare_parameter('odom_topic', '/odom')
         self.declare_parameter('voltage_full', 12.6)           

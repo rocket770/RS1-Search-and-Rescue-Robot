@@ -59,7 +59,7 @@ class BTCoordinator(Node):
         self.cmd_vel_topic = self.declare_parameter("cmd_vel_topic", "/cmd_vel").get_parameter_value().string_value
         self.ui_move_topic = self.declare_parameter("ui_move_topic", "/ui/move").get_parameter_value().string_value
 
-        self.detection_memory = float(self.declare_parameter("detection_memory", 2).value)
+        self.detection_memory = int(self.declare_parameter("detection_memory", 2).value)
 
         self.state = self.ST_EXPLORE
         self.visited_classes = deque(maxlen=self.detection_memory)   
@@ -72,7 +72,6 @@ class BTCoordinator(Node):
 
         self.nav_client = ActionClient(self, NavigateToPose, "navigate_to_pose")
 
-        self.sub_battery = self.create_subscription(BatteryState, "/battery_state", self._on_battery, 10)
         self.sub_goal = self.create_subscription(PoseStamped, f"/{self.bt_goal_topic}", self._on_user_goal, 10)
         self.sub_detect2d = self.create_subscription(Detection2DArray, self.detection_topic, self._on_det, 10)
         self.sub_ui_move = self.create_subscription(Twist, self.ui_move_topic, self._on_ui_move, 5)
@@ -84,8 +83,22 @@ class BTCoordinator(Node):
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.TRANSIENT_LOCAL
         )
-
         self.pub_explore_resume = self.create_publisher(Bool, "/explore/resume", qos)
+
+
+
+        battery_qos = QoSProfile(
+            depth=10,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE,
+        )
+
+        self.sub_battery = self.create_subscription(
+            BatteryState,
+            "/battery_state",
+            self._on_battery,
+            battery_qos,
+        )
 
         # remmebr to move up top later for consistnacy lol
         self.global_goal_topic = self.declare_parameter(
@@ -108,7 +121,6 @@ class BTCoordinator(Node):
 
         self.get_logger().info(
             f"bt_coordinator up. Using '{self.detection_topic}'. "
-            "States: explore → (to_detection | to_manual | to_dock) → wait_resume."
         )
 
         self._manual_paused_once = False
@@ -243,9 +255,6 @@ class BTCoordinator(Node):
     def _on_det(self, arr: Detection2DArray):
         # ignore if we're not in exploration or if suppressed
         if self._should_ignore_detections():
-            self.get_logger().info(
-                f"                      Ignored----------------------------------------------------------------------------------------------------------------------"
-            )
             return
         
         frame = getattr(arr.header, "frame_id", "") or self.map_frame
@@ -283,7 +292,7 @@ class BTCoordinator(Node):
             ayaw = math.atan2(y - ay, x - ax)
 
             self.get_logger().info(
-                f"                      Detection '{cls}' at ({x:.2f},{y:.2f}); approaching to ({ax:.2f},{ay:.2f}).           !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                f"Detection '{cls}' at ({x:.2f},{y:.2f}); approaching to ({ax:.2f},{ay:.2f})."
             )
 
             self._preempt_everything()
@@ -307,13 +316,13 @@ class BTCoordinator(Node):
 
         if self.state in (self.ST_TO_MANUAL, self.ST_TO_DOCK, self.ST_WAIT_RESUME):
             self.get_logger().info(
-                f"                      DATA!!! in state {self.state}"
+                f" Ignored Detection due to state!!!!!!!!!!!!! State: {self.state}"
             )
             return True
         t = time.time()
         if t < self.suppress_detections_until:
             self.get_logger().info(
-                f"                      DATA!!! TIMMME {self.suppress_detections_until-t}"
+                f" Ignored Detection due to time!!!!!!!!!!!!! Time: {self.suppress_detections_until-t}"
             )
             return True
         return False
