@@ -18,6 +18,9 @@ from nav2_msgs.msg import SpeedLimit
 
 from geometry_msgs.msg import Twist
 
+from std_msgs.msg import Bool 
+
+
 def yaw_from_quat(q: Quaternion) -> float:
     ysqr = q.y * q.y
     t3 = +2.0 * (q.w * q.z + q.x * q.y)
@@ -58,8 +61,6 @@ class BTCoordinator(Node):
         self.suppress_detections_until = 0.0
         self.active_goal_id = None
 
-        self.srv_pause = self.create_client(Trigger, "/slam/pause")
-        self.srv_resume = self.create_client(Trigger, "/slam/resume")
         self.srv_reset_batt = self.create_client(Empty, "/reset_battery")
 
         self.srv_user_resume = self.create_service(Trigger, "/user/resume_explore", self._on_user_resume)
@@ -71,9 +72,10 @@ class BTCoordinator(Node):
         self.sub_detect2d = self.create_subscription(Detection2DArray, self.detection_topic, self._on_det, 10)
         self.sub_ui_move = self.create_subscription(Twist, self.ui_move_topic, self._on_ui_move, 5)
 
-        self._wait_for_service(self.srv_pause, "/slam/pause")
-        self._wait_for_service(self.srv_resume, "/slam/resume")
         self._wait_for_service(self.srv_reset_batt, "/reset_battery")
+
+        self.pub_explore_resume = self.create_publisher(Bool, "/explore/resume", 10)
+
 
         # remmebr to move up top later for consistnacy lol
         self.global_goal_topic = self.declare_parameter(
@@ -149,7 +151,7 @@ class BTCoordinator(Node):
 
             self.get_logger().info("UI move pausing...")
             self._preempt_everything()
-            self._pause_slam()
+            self._pause_explore()
             self.state = self.ST_WAIT_RESUME
             self._manual_paused_once = True
 
@@ -166,28 +168,16 @@ class BTCoordinator(Node):
         self.pub_speed_limit.publish(msg)
         
     def _on_user_resume(self, req, resp):
-        if self.state != self.ST_WAIT_RESUME and not self._manual_paused_once:
-            resp.success = True
-            resp.message = "Already exploring or busy but resuming anyway."
-            return resp
-
-        resumed = self.call_trigger(self.srv_resume)
-        if resumed:
-            self.state = self.ST_EXPLORE
-            self._manual_paused_once = False
-
-            now = time.time()
-            if now > self.suppress_detections_until:
-                self.suppress_detections_until = now + float(self.post_manual_resume_suppress_secs)
-
-            resp.success = True
-            resp.message = "Exploration resumed."
-            if self._speed_reduced == True:
-                self._set_speed_percentage(1.0)
-                self._speed_reduced = False
-        else:
-            resp.success = False
-            resp.message = "Failed to resume SLAM."
+        self._resume_explore()
+        self.state = self.ST_EXPLORE
+        self._manual_paused_once = False
+        now = time.time()
+        self.suppress_detections_until = now + float(self.post_manual_resume_suppress_secs)
+        resp.success = True
+        resp.message = "Exploration resumed."
+        if self._speed_reduced:
+            self._set_speed_percentage(1.0)
+            self._speed_reduced = False
         return resp
 
     def _on_battery(self, msg: BatteryState):
@@ -200,7 +190,7 @@ class BTCoordinator(Node):
                     self._set_speed_percentage(1.0)
                     self._speed_reduced = False
                 self._preempt_everything()
-                self._pause_slam()
+                self._pause_explore()
                 self._go_to_home()
 
     def _on_user_goal(self, pose: PoseStamped):
@@ -209,7 +199,7 @@ class BTCoordinator(Node):
             self._speed_reduced = False
         self.get_logger().info("Received manual goal; pausing SLAM and navigating.")
         self._preempt_everything()
-        self._pause_slam()
+        self._pause_explore()
         self._send_nav_goal(pose, target_state=self.ST_TO_MANUAL)
 
     def _publish_static_goal(self, x: float, y: float, frame: str):
@@ -275,12 +265,12 @@ class BTCoordinator(Node):
                 f"Detection '{cls}' at ({x:.2f},{y:.2f}); approaching to ({ax:.2f},{ay:.2f})."
             )
             self._preempt_everything()
-            self._pause_slam()
+            self._pause_explore()
 
             if self._speed_reduced == False:
                 self._set_speed_percentage(self.slowdown_factor)
                 self._speed_reduced = True
-
+                
             goal = PoseStamped()
             goal.header.frame_id = frame
             goal.header.stamp = self.get_clock().now().to_msg()
@@ -306,10 +296,18 @@ class BTCoordinator(Node):
             except Exception:
                 pass
 
-    def _pause_slam(self):
-        ok = self.call_trigger(self.srv_pause)
-        if not ok:
-            self.get_logger().warn("Failed to pause SLAM (continuing).")
+    def _pause_explore(self):
+        msg = Bool()
+        msg.data = False
+        self.pub_explore_resume.publish(msg)
+        self.get_logger().info("Sent False to /explore/resume")
+
+    def _resume_explore(self) -> bool:
+        msg = Bool()
+        msg.data = True
+        self.pub_explore_resume.publish(msg)
+        self.get_logger().info("Sent True to /explore/resume")
+        return True
 
     def _send_nav_goal(self, pose: PoseStamped, target_state: str, detection_class: Optional[str] = None):
         if not self.nav_client.server_is_ready():

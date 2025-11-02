@@ -236,9 +236,6 @@ class YoloDetectorNode(Node):
 
         for r in results:
             if not getattr(r, "boxes", None) or len(r.boxes) == 0:
-                self.get_logger().info(
-                    f"skipping boxes {r.boxes}"
-                )
                 continue
 
             names = getattr(r, "names", None) or getattr(self.model, "names", {}) or {}

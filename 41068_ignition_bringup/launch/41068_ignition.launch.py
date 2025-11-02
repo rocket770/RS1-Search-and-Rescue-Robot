@@ -10,8 +10,6 @@ from launch.substitutions import PathJoinSubstitution
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import TextSubstitution
 
-
-
 def generate_launch_description():
 
     ld = LaunchDescription()
@@ -53,6 +51,12 @@ def generate_launch_description():
         description='Launch battery simulator' 
     ) 
     ld.add_action(battery_arg)
+    slam_launch_arg = DeclareLaunchArgument(
+        'slam',
+        default_value='True',
+        description='Flag to enable SLAM and exploration'
+    )
+    ld.add_action(slam_launch_arg)
 
     # Load robot_description and start robot_state_publisher
     robot_description_content = ParameterValue(
@@ -239,7 +243,7 @@ def generate_launch_description():
     ld.add_action(path_planner) 
 
     tools_time = Node(
-        package='tools',
+        package='custom_tools',
         executable='toggle_time_node',
         name='toggle_time_node',
         output='screen',
@@ -251,7 +255,7 @@ def generate_launch_description():
     ld.add_action(tools_time) 
 
     tools_nv = Node(
-        package='tools',
+        package='custom_tools',
         executable='night_vision_camera_node',
         name='night_vision_camera_node',
         output='screen',
@@ -264,7 +268,7 @@ def generate_launch_description():
     ld.add_action(tools_nv)
 
     tools_cloud = Node(
-        package='tools',
+        package='custom_tools',
         executable='cloud_accumulator',
         name='cloud_accumulator',
         output='screen',
@@ -278,6 +282,21 @@ def generate_launch_description():
         }]
     )
     ld.add_action(tools_cloud)
+
+    explore_lite = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('explore_lite'),
+                'launch',
+                'explore.launch.py'
+            ])
+        ]),
+        launch_arguments={
+            'use_sim_time': use_sim_time
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('slam'))
+    )
+    ld.add_action(explore_lite)
 
 
     return ld

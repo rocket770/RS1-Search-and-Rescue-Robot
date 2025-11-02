@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'tools'
+package_name = 'custom_tools'
 
 setup(
     name=package_name,
