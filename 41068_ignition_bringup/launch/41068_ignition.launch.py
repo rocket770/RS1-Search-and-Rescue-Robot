@@ -193,7 +193,6 @@ def generate_launch_description():
             'conf_thres': 0.60,
             'iou_thres': 0.60,
             'ign_topic': ign_pose_topic,
-            "detection_memory": 2
         }],
         condition=IfCondition(LaunchConfiguration('yolo'))
     )
@@ -225,6 +224,7 @@ def generate_launch_description():
             "battery_threshold": 0.30,
             "home_pose_xy": home_base_location,
             "post_manual_resume_suppress_secs": 8,
+            "detection_memory": 2
         }],
     )
     ld.add_action(bt_coord) 
