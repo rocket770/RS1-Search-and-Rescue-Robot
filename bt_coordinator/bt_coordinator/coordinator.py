@@ -59,7 +59,7 @@ class BTCoordinator(Node):
         self.cmd_vel_topic = self.declare_parameter("cmd_vel_topic", "/cmd_vel").get_parameter_value().string_value
         self.ui_move_topic = self.declare_parameter("ui_move_topic", "/ui/move").get_parameter_value().string_value
 
-        self.detection_memory = int(self.declare_parameter("detection_memory", 2).value)
+        self.detection_memory = int(self.declare_parameter("detection_memory", 4).value)
 
         self.state = self.ST_EXPLORE
         self.visited_classes = deque(maxlen=self.detection_memory)   

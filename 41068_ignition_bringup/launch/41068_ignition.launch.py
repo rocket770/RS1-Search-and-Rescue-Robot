@@ -224,7 +224,7 @@ def generate_launch_description():
             "battery_threshold": 0.30,
             "home_pose_xy": home_base_location,
             "post_manual_resume_suppress_secs": 8,
-            "detection_memory": 2
+            "detection_memory": 4
         }],
     )
     ld.add_action(bt_coord) 
