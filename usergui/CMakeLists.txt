@@ -21,6 +21,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
 find_package(ros_image_to_qimage REQUIRED)
 
@@ -77,7 +78,8 @@ ament_target_dependencies(usergui PUBLIC
     std_msgs
     sensor_msgs
     geometry_msgs
-    ros_image_to_qimage)
+    ros_image_to_qimage
+    std_srvs)
 
 set_target_properties(usergui PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com

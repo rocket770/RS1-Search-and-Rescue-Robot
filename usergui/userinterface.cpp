@@ -14,19 +14,29 @@ userinterface::userinterface(QWidget *parent)
 
     // subscribing to the camera topic
     subToImage = node_->create_subscription<sensor_msgs::msg::Image>(
-        "/camera/image", 10, std::bind(&userinterface::obtainImage, this, std::placeholders::_1));
+        "/camera/image", rclcpp::SensorDataQoS(), std::bind(&userinterface::obtainImage, this, std::placeholders::_1));
 
     // publish movement to robot
     velocity = node_->create_publisher<geometry_msgs::msg::Twist> (
-                "/ui/move", 10);
+        "/ui/move", 10);
 
+    subtoBattery = node_->create_subscription<sensor_msgs::msg::BatteryState>(
+        "/battery_state", rclcpp::SensorDataQoS(), std::bind(&userinterface::obtainBattery, this, std::placeholders::_1));
+    
+
+    resume_explore_client_ =
+        node_->create_client<std_srvs::srv::Trigger>("/user/resume_explore");
+        
     // Timer to process ROS messages
     // since qt has its own event loop to avoid blocking use rclcpp instead of ros::spin
     // https://www.youtube.com/watch?v=Cg1DaNFnZyY
     // use the address instead of SLOT and SIGNAL
     ros_timer_ = new QTimer(this);
     connect(ros_timer_, &QTimer::timeout, this, &userinterface::rosmsgs);
+    
     ros_timer_->start(50);  // check for messages every 50ms and to avoid too much CPU load
+
+
 }
 
 userinterface::~userinterface() {
@@ -76,7 +86,15 @@ void userinterface::on_dayShift_toggled(bool checked)
 // Change from Autonomy to Manual movement
 void userinterface::on_moveShift_toggled(bool checked)
 {
+    if (!resume_explore_client_ || !resume_explore_client_->service_is_ready()) {
+        RCLCPP_WARN(node_->get_logger(),
+            "Service /user/resume_explore not ready.");
+        return;
+    }
 
+    auto req = std::make_shared<std_srvs::srv::Trigger::Request>();
+
+    resume_explore_client_->async_send_request(req);
 }
 
 
@@ -85,8 +103,10 @@ void userinterface::on_batteryLevel_valueChanged(int value)
 {
 
 }
+
 void userinterface::obtainBattery(const sensor_msgs::msg::BatteryState::SharedPtr msg)
 {
+
     // msg->percentage is 0.0 to 1.0
     int percentage = static_cast<int>(msg->percentage * 100.0);
 

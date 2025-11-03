@@ -6,6 +6,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <sensor_msgs/msg/battery_state.hpp>
+#include <std_srvs/srv/trigger.hpp>
 
 #include <QTimer> // check for ros messages
 
@@ -58,6 +59,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subToImage;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr velocity;
     rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr subtoBattery;
+    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr resume_explore_client_;
 
     QTimer *ros_timer_;
 
