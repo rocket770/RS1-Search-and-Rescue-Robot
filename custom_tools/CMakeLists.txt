@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
-project(tools)
+project(custom_tools)
 
-# Python part
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 
@@ -13,8 +12,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 
-# === C++ executable ===
-add_executable(cloud_accumulator tools/cloud_accumulator.cpp)  # <- adjust path
+add_executable(cloud_accumulator custom_tools/cloud_accumulator.cpp) 
 ament_target_dependencies(cloud_accumulator
   rclcpp
   sensor_msgs
@@ -29,14 +27,18 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# === Python install (your current stuff) ===
 ament_python_install_package(${PROJECT_NAME})
 
-# if you have console_scripts in setup.py this will install them
 install(PROGRAMS
-  # nothing here if you use entry_points
+  custom_tools/toggle_time_node.py
   DESTINATION lib/${PROJECT_NAME}
+  RENAME toggle_time_node
 )
 
+install(PROGRAMS
+  custom_tools/night_vision_camera_node.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME night_vision_camera_node
+)
 
 ament_package()

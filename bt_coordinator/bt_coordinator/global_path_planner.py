@@ -77,7 +77,7 @@ class GlobalPathPlanner(Node):
         goal_msg.planner_id = '' # should just be default planner me thinks
 
         gx, gy = goal.pose.position.x, goal.pose.position.y
-        self.get_logger().info(f"Planning home→({gx:.2f}, {gy:.2f})")
+        self.get_logger().info(f"Planning home ({gx:.2f}, {gy:.2f})")
 
         send_future = self.action_client.send_goal_async(goal_msg)
         send_future.add_done_callback(lambda f: self._on_goal_response(goal, f))
@@ -98,7 +98,6 @@ class GlobalPathPlanner(Node):
         result_future.add_done_callback(lambda f: self._on_path_result(goal, f))
 
     def _on_path_result(self, goal: PoseStamped, future) -> None:
-        """Receive the final path from the action result and publish."""
         if future.cancelled():
             self.get_logger().error("Planner result future was cancelled.")
             return
@@ -111,9 +110,13 @@ class GlobalPathPlanner(Node):
         result = future.result().result
         path: Path = result.path
 
+        now = self.get_clock().now().to_msg()
+
         if not path.header.frame_id:
             path.header.frame_id = self.frame_id
 
+        path.header.stamp = now
+        
         self.path_pub.publish(path)
 
         self.marker_id += 1
@@ -143,7 +146,7 @@ class GlobalPathPlanner(Node):
 
         gx, gy = goal.pose.position.x, goal.pose.position.y
         self.get_logger().info(
-            f"Published path {self.marker_id}: home→({gx:.2f}, {gy:.2f}) "
+            f"Published path {self.marker_id}: home ({gx:.2f}, {gy:.2f}) "
             f"({len(path.poses)} poses)"
         )
 

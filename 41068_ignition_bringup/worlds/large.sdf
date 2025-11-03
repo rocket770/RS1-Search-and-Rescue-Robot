@@ -290,7 +290,7 @@
         https://fuel.gazebosim.org/1.0/OpenRobotics/models/Falling%20Rock%202
       </uri>
       <name>rock2</name>
-      <pose>-8.27162 -6.19647 0 0 0 0</pose>
+      <pose>-9.27162 -5.19647 0 0 0 0</pose>
     </include>
     <include>
       <uri>

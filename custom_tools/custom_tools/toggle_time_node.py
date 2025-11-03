@@ -1,4 +1,4 @@
-# tools/tools/toggle_time_node.py
+#!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
 from std_srvs.srv import Trigger

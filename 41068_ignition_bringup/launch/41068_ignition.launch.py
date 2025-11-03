@@ -8,8 +8,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import PathJoinSubstitution
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-
-
+from launch.substitutions import TextSubstitution
 
 def generate_launch_description():
 
@@ -52,6 +51,12 @@ def generate_launch_description():
         description='Launch battery simulator' 
     ) 
     ld.add_action(battery_arg)
+    slam_launch_arg = DeclareLaunchArgument(
+        'slam',
+        default_value='True',
+        description='Flag to enable SLAM and exploration'
+    )
+    ld.add_action(slam_launch_arg)
 
     # Load robot_description and start robot_state_publisher
     robot_description_content = ParameterValue(
@@ -82,7 +87,7 @@ def generate_launch_description():
 
     world_launch_arg = DeclareLaunchArgument(
         'world',
-        default_value='simple_trees',
+        default_value='large',
         description='Which world to load',
         choices=['simple_trees', 'large', 'extra_large']
     )
@@ -165,6 +170,14 @@ def generate_launch_description():
        FindPackageShare('41068_ignition_bringup'), 'yolo', 'weights', 'best_stable_best_result.pt'
     ])
 
+    world = LaunchConfiguration('world')
+
+    ign_pose_topic = PathJoinSubstitution([
+        TextSubstitution(text='/world'),
+        world,
+        TextSubstitution(text='pose/info'),
+    ])
+
     yolo_node = Node(
         package='yolo_detector',             
         executable='yolo_detector_node',  
@@ -178,7 +191,8 @@ def generate_launch_description():
             'target_frame': 'map',
             'use_sim_time': use_sim_time,
             'conf_thres': 0.60,
-            'iou_thres': 0.60
+            'iou_thres': 0.60,
+            'ign_topic': ign_pose_topic,
         }],
         condition=IfCondition(LaunchConfiguration('yolo'))
     )
@@ -210,6 +224,7 @@ def generate_launch_description():
             "battery_threshold": 0.30,
             "home_pose_xy": home_base_location,
             "post_manual_resume_suppress_secs": 8,
+            "detection_memory": 2
         }],
     )
     ld.add_action(bt_coord) 
@@ -229,7 +244,7 @@ def generate_launch_description():
     ld.add_action(path_planner) 
 
     tools_time = Node(
-        package='tools',
+        package='custom_tools',
         executable='toggle_time_node',
         name='toggle_time_node',
         output='screen',
@@ -241,7 +256,7 @@ def generate_launch_description():
     ld.add_action(tools_time) 
 
     tools_nv = Node(
-        package='tools',
+        package='custom_tools',
         executable='night_vision_camera_node',
         name='night_vision_camera_node',
         output='screen',
@@ -252,5 +267,37 @@ def generate_launch_description():
         }]
     )
     ld.add_action(tools_nv)
+
+    tools_cloud = Node(
+        package='custom_tools',
+        executable='cloud_accumulator',
+        name='cloud_accumulator',
+        output='screen',
+        parameters=[{
+            'input_topic': '/camera/depth/points',
+            'output_topic': '/accumulated_cloud',
+            'target_frame': 'map',
+            'publish_rate': 0.5,
+            'stride': 4,
+            'tf_cache_sec': 0.2,
+        }]
+    )
+    ld.add_action(tools_cloud)
+
+    explore_lite = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('explore_lite'),
+                'launch',
+                'explore.launch.py'
+            ])
+        ]),
+        launch_arguments={
+            'use_sim_time': use_sim_time
+        }.items(),
+        condition=IfCondition(LaunchConfiguration('slam'))
+    )
+    ld.add_action(explore_lite)
+
 
     return ld
