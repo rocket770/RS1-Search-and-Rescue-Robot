@@ -223,7 +223,7 @@ def generate_launch_description():
             "approach_distance": 2.5,
             "battery_threshold": 0.30,
             "home_pose_xy": home_base_location,
-            "post_manual_resume_suppress_secs": 8,
+            "post_manual_resume_suppress_secs": 2,
             "detection_memory": 4
         }],
     )
