@@ -18,7 +18,7 @@ userinterface::userinterface(QWidget *parent)
 
     // publish movement to robot
     velocity = node_->create_publisher<geometry_msgs::msg::Twist> (
-                "/cmd_vel", 10);
+                "/ui/move", 10);
 
     // Timer to process ROS messages
     // since qt has its own event loop to avoid blocking use rclcpp instead of ros::spin

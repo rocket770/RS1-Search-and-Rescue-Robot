@@ -299,5 +299,13 @@ def generate_launch_description():
     )
     ld.add_action(explore_lite)
 
+    ui = Node(
+        package='usergui',          
+        executable='usergui',     
+        name='usergui',
+        output='screen',
+    )
+    ld.add_action(ui)
+
 
     return ld
