@@ -23,9 +23,12 @@ userinterface::userinterface(QWidget *parent)
     subtoBattery = node_->create_subscription<sensor_msgs::msg::BatteryState>(
         "/battery_state", rclcpp::SensorDataQoS(), std::bind(&userinterface::obtainBattery, this, std::placeholders::_1));
     
-
     resume_explore_client_ =
         node_->create_client<std_srvs::srv::Trigger>("/user/resume_explore");
+    
+    toggle_time_client_ =
+        node_->create_client<std_srvs::srv::Trigger>("/toggle_time");
+
         
     // Timer to process ROS messages
     // since qt has its own event loop to avoid blocking use rclcpp instead of ros::spin
@@ -78,23 +81,38 @@ void userinterface::on_stopButton_clicked() {
 
 
 // To change the environment within the simulation
-void userinterface::on_dayShift_toggled(bool checked)
+void userinterface::on_dayShift_clicked()
 {
 
-}
-
-// Change from Autonomy to Manual movement
-void userinterface::on_moveShift_toggled(bool checked)
-{
-    if (!resume_explore_client_ || !resume_explore_client_->service_is_ready()) {
-        RCLCPP_WARN(node_->get_logger(),
-            "Service /user/resume_explore not ready.");
-        return;
-    }
+    //  brief debounce so a double click dont spam requests
+    ui->dayShift->setEnabled(false);
 
     auto req = std::make_shared<std_srvs::srv::Trigger::Request>();
 
-    resume_explore_client_->async_send_request(req);
+    (void)toggle_time_client_->async_send_request(req);
+
+    // the debounce, re enable after 250ms
+    QTimer::singleShot(250, this, [this]{
+        ui->dayShift->setEnabled(true);
+    });
+}
+
+// Change from Autonomy to Manual movement
+void userinterface::on_moveShift_clicked()
+{
+    //RCLCPP_INFO(node_->get_logger(), "Hit!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!.");
+
+    //  brief debounce so a double click dont spam requests
+    ui->moveShift->setEnabled(false);
+
+    auto req = std::make_shared<std_srvs::srv::Trigger::Request>();
+
+    (void)resume_explore_client_->async_send_request(req);
+
+    // the debounce, re enable after 250ms
+    QTimer::singleShot(250, this, [this]{
+        ui->moveShift->setEnabled(true);
+    });
 }
 
 

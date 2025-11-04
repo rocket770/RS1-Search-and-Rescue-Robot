@@ -3,6 +3,8 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 
+ # i used this to make the bt config portable btw guys - nick
+from nav2_common.launch import RewrittenYaml
 
 def generate_launch_description():
 
@@ -28,12 +30,25 @@ def generate_launch_description():
         }.items()
     )
 
-    # Start Navigation Stack
+
+    params_file = PathJoinSubstitution([FindPackageShare('41068_ignition_bringup'), 'config', 'nav2_params.yaml'])
+
+    configured_params = RewrittenYaml(
+        source_file=params_file,
+        param_rewrites={
+            'default_bt_xml_filename': PathJoinSubstitution([
+                FindPackageShare('41068_ignition_bringup'),
+                'bt', 'custom_navigate_to_pose.xml' 
+            ])
+        },
+        convert_types=True
+    )
+
     navigation = IncludeLaunchDescription(
         PathJoinSubstitution([FindPackageShare('nav2_bringup'), 'launch', 'navigation_launch.py']),
         launch_arguments={
             'use_sim_time': use_sim_time,
-            'params_file': PathJoinSubstitution([config_path, 'nav2_params.yaml']),
+            'params_file': configured_params
         }.items()
         
     )

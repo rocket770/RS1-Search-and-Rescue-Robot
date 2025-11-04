@@ -33,13 +33,13 @@ private slots:
     void on_stopButton_clicked();
 
     // To change between day and night
-    void on_dayShift_toggled(bool checked);
+    void on_dayShift_clicked();
 
     // To show battery level
      void on_batteryLevel_valueChanged(int value);
 
     // To change between manual and autonomous
-    void on_moveShift_toggled(bool checked);
+    void on_moveShift_clicked();
 
     // change the speed of robot
     void on_speedChange_valueChanged(double arg1);
@@ -60,6 +60,7 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr velocity;
     rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr subtoBattery;
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr resume_explore_client_;
+    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr toggle_time_client_;
 
     QTimer *ros_timer_;
 
