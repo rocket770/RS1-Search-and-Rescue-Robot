@@ -74,7 +74,6 @@ class BTCoordinator(Node):
 
         self.sub_goal = self.create_subscription(PoseStamped, f"/{self.bt_goal_topic}", self._on_user_goal, 10)
         self.sub_detect2d = self.create_subscription(Detection2DArray, self.detection_topic, self._on_det, 10)
-        self.sub_ui_move = self.create_subscription(Twist, self.ui_move_topic, self._on_ui_move, 5)
 
         self._wait_for_service(self.srv_reset_batt, "/reset_battery")
 
@@ -85,13 +84,14 @@ class BTCoordinator(Node):
         )
         self.pub_explore_resume = self.create_publisher(Bool, "/explore/resume", qos)
 
-
-
         battery_qos = QoSProfile(
             depth=10,
             reliability=ReliabilityPolicy.BEST_EFFORT,
             durability=DurabilityPolicy.VOLATILE,
         )
+
+        self.sub_ui_move = self.create_subscription(Twist, self.ui_move_topic, self._on_ui_move, battery_qos)
+
 
         self.sub_battery = self.create_subscription(
             BatteryState,

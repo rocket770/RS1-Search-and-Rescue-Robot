@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>usergui</name>
+  <version>0.0.1</version>
+  <description>Qt GUI for Husky simulation</description>
+  <maintainer email="Melroop.S.Nijjar@student.uts.edu.au">Your Name</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>ros_image_to_qimage</depend>
+
+  <depend>qtbase5-dev</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -11,11 +11,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ros_ign_interfaces REQUIRED)
 
 install(
-  DIRECTORY config launch models urdf worlds
-  DESTINATION share/${PROJECT_NAME}
-)
-
-install(DIRECTORY yolo
+  DIRECTORY config launch models urdf worlds yolo bt
   DESTINATION share/${PROJECT_NAME}
 )
 

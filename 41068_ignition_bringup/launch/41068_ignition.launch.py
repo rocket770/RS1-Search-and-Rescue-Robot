@@ -10,6 +10,7 @@ from launch.substitutions import PathJoinSubstitution
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import TextSubstitution
 
+
 def generate_launch_description():
 
     ld = LaunchDescription()
@@ -223,7 +224,7 @@ def generate_launch_description():
             "approach_distance": 2.5,
             "battery_threshold": 0.30,
             "home_pose_xy": home_base_location,
-            "post_manual_resume_suppress_secs": 8,
+            "post_manual_resume_suppress_secs": 2,
             "detection_memory": 4
         }],
     )
@@ -298,6 +299,14 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('slam'))
     )
     ld.add_action(explore_lite)
+
+    ui = Node(
+        package='usergui',          
+        executable='usergui',     
+        name='usergui',
+        output='screen',
+    )
+    ld.add_action(ui)
 
 
     return ld
