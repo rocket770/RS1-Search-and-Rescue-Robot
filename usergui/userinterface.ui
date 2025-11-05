@@ -33,10 +33,10 @@
    <widget class="QPushButton" name="dayShift">
     <property name="geometry">
      <rect>
-      <x>370</x>
+      <x>330</x>
       <y>50</y>
-      <width>89</width>
-      <height>25</height>
+      <width>111</width>
+      <height>31</height>
      </rect>
     </property>
     <property name="text">
@@ -46,14 +46,14 @@
    <widget class="QPushButton" name="moveShift">
     <property name="geometry">
      <rect>
-      <x>210</x>
+      <x>190</x>
       <y>50</y>
       <width>111</width>
       <height>31</height>
      </rect>
     </property>
     <property name="text">
-     <string>Auto | Manual</string>
+     <string>Resume Auto</string>
     </property>
    </widget>
    <widget class="QProgressBar" name="batteryLevel">
@@ -61,8 +61,8 @@
      <rect>
       <x>40</x>
       <y>50</y>
-      <width>118</width>
-      <height>23</height>
+      <width>121</width>
+      <height>31</height>
      </rect>
     </property>
     <property name="value">
@@ -127,6 +127,45 @@
     </property>
     <property name="decimals">
      <number>0</number>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="cameraSelection">
+    <property name="geometry">
+     <rect>
+      <x>550</x>
+      <y>340</y>
+      <width>221</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="editable">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>610</x>
+      <y>320</y>
+      <width>111</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Change Camera</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_2">
+    <property name="geometry">
+     <rect>
+      <x>630</x>
+      <y>230</y>
+      <width>71</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Set Speed</string>
     </property>
    </widget>
   </widget>

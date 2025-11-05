@@ -48,6 +48,8 @@ private slots:
         rclcpp::spin_some(node_); // ros processes messages without blocking GUI event loop
     }
 
+    void on_cameraSelection_currentIndexChanged(int index);
+
 private:
 
     // For subscribing and publishing
@@ -70,6 +72,8 @@ private:
     void obtainImage(const sensor_msgs::msg::Image::SharedPtr msg);
     void publishvelocity(double linear_x, double angular_z);
     void obtainBattery(const sensor_msgs::msg::BatteryState::SharedPtr msg);
+    void subToImageTopic(const std::string &topic_name);
+    std::string current_image_topic_;
 
 };
 #endif // USERINTERFACE_H

@@ -21,6 +21,9 @@ Install deps
 	#for cpu
 	python3 -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
 
+	# UI
+	sudo apt install -y qtbase5-dev qtbase5-dev-tools qtchooser qt5-qmake
+
 Vis YOlo model
 	ros2 run rqt_image_view rqt_image_view
 
