@@ -12,9 +12,20 @@ userinterface::userinterface(QWidget *parent)
     // the ros node
     node_ = std::make_shared<rclcpp::Node>("usergui_node");
 
+    //current_image_topic_ = "/camera/image";
+    //subToImageTopic(current_image_topic_);
+
+    ui->cameraSelection->addItem(QString::fromStdString("/camera/image"));
+    ui->cameraSelection->addItem(QString::fromStdString("/yolo_detector/detections/image"));
+    ui->cameraSelection->addItem(QString::fromStdString("/night_vision/image"));
+
     // subscribing to the camera topic
-    subToImage = node_->create_subscription<sensor_msgs::msg::Image>(
-        "/camera/image", rclcpp::SensorDataQoS(), std::bind(&userinterface::obtainImage, this, std::placeholders::_1));
+    //subToImage = node_->create_subscription<sensor_msgs::msg::Image>(
+    //    "/camera/image", rclcpp::SensorDataQoS(), std::bind(&userinterface::obtainImage, this, std::placeholders::_1));
+
+    current_image_topic_ = "/camera/image";  // default topic
+    subToImageTopic(current_image_topic_);
+
 
     // publish movement to robot
     velocity = node_->create_publisher<geometry_msgs::msg::Twist> (
@@ -149,5 +160,29 @@ void userinterface::obtainImage(const sensor_msgs::msg::Image::SharedPtr msg) {
 void userinterface::on_speedChange_valueChanged(double arg1)
 {
 
+}
+
+
+
+
+
+void userinterface::on_cameraSelection_currentIndexChanged(int index) {
+    QString selected = ui->cameraSelection->itemText(index);
+    std::string topic = selected.toStdString();
+
+    if (topic != current_image_topic_) {
+        subToImageTopic(topic);
+    }
+}
+
+void userinterface::subToImageTopic(const std::string &topic_name) {
+    subToImage.reset();
+
+    subToImage = node_->create_subscription<sensor_msgs::msg::Image> (
+                topic_name,
+                rclcpp::SensorDataQoS(),
+                std::bind(&userinterface::obtainImage, this, std::placeholders::_1)
+                );
+    current_image_topic_ = topic_name;
 }
 
