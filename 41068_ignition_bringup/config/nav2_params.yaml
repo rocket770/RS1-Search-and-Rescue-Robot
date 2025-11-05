@@ -1,58 +1,60 @@
-amcl:
-  ros__parameters:
-    use_sim_time: True
-    alpha1: 0.2
-    alpha2: 0.2
-    alpha3: 0.2
-    alpha4: 0.2
-    alpha5: 0.2
-    base_frame_id: "base_link"
-    beam_skip_distance: 0.5
-    beam_skip_error_threshold: 0.9
-    beam_skip_threshold: 0.3
-    do_beamskip: false
-    global_frame_id: "map"
-    lambda_short: 0.1
-    laser_likelihood_max_dist: 2.0
-    laser_max_range: 100.0
-    laser_min_range: -1.0
-    laser_model_type: "likelihood_field"
-    max_beams: 60
-    max_particles: 2000
-    min_particles: 500
-    odom_frame_id: "odom"
-    pf_err: 0.05
-    pf_z: 0.99
-    recovery_alpha_fast: 0.0
-    recovery_alpha_slow: 0.0
-    resample_interval: 1
-    robot_model_type: "nav2_amcl::DifferentialMotionModel"
-    save_pose_rate: 0.5
-    sigma_hit: 0.2
-    tf_broadcast: true
-    transform_tolerance: 1.0
-    update_min_a: 0.2
-    update_min_d: 0.25
-    z_hit: 0.5
-    z_max: 0.05
-    z_rand: 0.5
-    z_short: 0.05
-    scan_topic: scan
+# per-node parameter blocks; Nav2 loads whichever nodes you launch
+
+# NOTE: Use AMCL ONLY for localization on a prebuilt/static map.
+# Do NOT run AMCL at the same time as Cartographer (both would publish map->odom).
+amcl:             # only for localization on a prebuilt map
+  # If you load this via a Nav2 launch, these should typically live under 'ros__parameters:'.
+  # I've kept your flat style since that's what you pasted.
+  use_sim_time: True                              # drive off simulated time
+  alpha1: 0.2                                     # rot noise on rot (motion model)
+  alpha2: 0.2                                     # rot noise on trans
+  alpha3: 0.2                                     # trans noise on trans
+  alpha4: 0.2                                     # trans noise on rot
+  alpha5: 0.2                                     # strafe noise (mainly for omni)
+  base_frame_id: "base_link"                      # robot body frame
+  beam_skip_distance: 0.5                         # skip beams that mismatch beyond this (m)
+  beam_skip_error_threshold: 0.9                  # fraction of skipped beams to trigger beamskip
+  beam_skip_threshold: 0.3                        # threshold to consider a beam a mismatch
+  do_beamskip: false                              # disable beamskip by default
+  global_frame_id: "map"                          # global, drift-free frame
+  lambda_short: 0.1                               # param for unexpected-short reading model
+  laser_likelihood_max_dist: 2.0                  # clamp likelihood beyond this dist (m)
+  laser_max_range: 100.0                          # sensor max (used by model)
+  laser_min_range: -1.0                           # sensor min (-1 = ignore)
+  laser_model_type: "likelihood_field"            # fast likelihood field model
+  max_beams: 60                                   # beams sampled per scan for scoring
+  max_particles: 2000                             # upper bound of adaptive particle set
+  min_particles: 500                              # lower bound of adaptive particle set
+  odom_frame_id: "odom"                           # local continuous frame
+  pf_err: 0.05                                    # KLD-sampling error bound
+  pf_z: 0.99                                      # KLD-sampling confidence
+  recovery_alpha_fast: 0.0                        # fast recovery rate (0 disables)
+  recovery_alpha_slow: 0.0                        # slow recovery rate (0 disables)
+  resample_interval: 1                            # resample every update
+  robot_model_type: "nav2_amcl::DifferentialMotionModel"  # motion model
+  save_pose_rate: 0.5                             # Hz to save pose to parameter server
+  sigma_hit: 0.2                                  # Gaussian std-dev for hit component (m)
+  tf_broadcast: true                              # AMCL publishes map->odom TF
+  transform_tolerance: 1.0                        # TF tolerance window (s)
+  update_min_a: 0.2                               # update after ≥ this yaw change (rad)
+  update_min_d: 0.25                              # update after ≥ this translation (m)
+  z_hit: 0.5                                      # weight for hit component
+  z_max: 0.05                                     # weight for max-range readings
+  z_rand: 0.5                                     # weight for random readings
+  z_short: 0.05                                   # weight for short readings
+  scan_topic: scan                                # laser topic
 
 bt_navigator:
   ros__parameters:
-    use_sim_time: True
-    global_frame: map
-    robot_base_frame: base_link
-    odom_topic: /odom
-    bt_loop_duration: 10
-    default_server_timeout: 20
-    wait_for_service_timeout: 1000
-    # 'default_nav_through_poses_bt_xml' and 'default_nav_to_pose_bt_xml' are use defaults:
-    # nav2_bt_navigator/navigate_to_pose_w_replanning_and_recovery.xml
-    # nav2_bt_navigator/navigate_through_poses_w_replanning_and_recovery.xml
-    # They can be set here or via a RewrittenYaml remap from a parent launch file to Nav2.
-    plugin_lib_names:
+    use_sim_time: True                            # sim time for BT executor
+    global_frame: map                             # planning frame
+    robot_base_frame: base_link                   # robot frame
+    odom_topic: /odom                             # odometry source
+    bt_loop_duration: 10                          # BT tick (ms)
+    default_server_timeout: 20                    # action server timeout (s)
+    wait_for_service_timeout: 1000                # service wait (ms)
+    # XML behavior trees: keep defaults; can override here via rewritten yaml.
+    plugin_lib_names:                             # BT node palette to load
       - nav2_compute_path_to_pose_action_bt_node
       - nav2_compute_path_through_poses_action_bt_node
       - nav2_smooth_path_action_bt_node
@@ -103,30 +105,31 @@ bt_navigator:
 
 bt_navigator_navigate_through_poses_rclcpp_node:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: True                            # NavThroughPoses wrapper timing
 
 bt_navigator_navigate_to_pose_rclcpp_node:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: True                            # NavToPose wrapper timing
 
 controller_server:
   ros__parameters:
-    use_sim_time: True
-    controller_frequency: 5.0
-    min_x_velocity_threshold: 0.001
-    min_y_velocity_threshold: 0.5
+    use_sim_time: True                            # planner/controller on sim time
+    controller_frequency: 5.0                     # control loop rate (Hz)
+    min_x_velocity_threshold: 0.001               # deadband thresholds
+    min_y_velocity_threshold: 0.5                 # (irrelevant for diff drive)
     min_theta_velocity_threshold: 0.001
-    failure_tolerance: 0.3
-    progress_checker_plugin: "progress_checker"
-    goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
-    controller_plugins: ["FollowPath"]
+    failure_tolerance: 0.3                        # tolerate brief failures before recovery
+    progress_checker_plugin: "progress_checker"   # detect “stuck”
+    goal_checker_plugins: ["general_goal_checker"]  # goal reached logic
+    controller_plugins: ["FollowPath"]            # local controller list
 
     # Progress checker parameters
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.5
-      movement_time_allowance: 10.0
-    # Goal checker parameters
+      required_movement_radius: 0.5               # must move ≥ 0.5 m
+      movement_time_allowance: 10.0               # within 10 s
+
+    # Goal checker parameters (precise checker left commented)
     #precise_goal_checker:
     #  plugin: "nav2_controller::SimpleGoalChecker"
     #  xy_goal_tolerance: 0.25
@@ -135,42 +138,42 @@ controller_server:
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 1.0
-      yaw_goal_tolerance: 0.5
-    # DWB parameters
+      xy_goal_tolerance: 1.0                      # loose position tolerance (m)
+      yaw_goal_tolerance: 0.5                     # loose yaw tolerance (rad)
+
+    # DWB local planner configuration
     FollowPath:
-      plugin: "dwb_core::DWBLocalPlanner"
+      plugin: "dwb_core::DWBLocalPlanner"         # lattice-based local planner
       debug_trajectory_details: False
       min_vel_x: 0.0
       min_vel_y: 0.0
-      max_vel_x: 1.0
-      max_vel_y: 0.0
-      max_vel_theta: 1.5
+      max_vel_x: 1.0                              # fwd speed limit (m/s)
+      max_vel_y: 0.0                              # 0 for diff drive
+      max_vel_theta: 1.5                          # yaw rate limit (rad/s)
       min_speed_xy: 0.0
       max_speed_xy: 1.0
       min_speed_theta: 0.0
-      # Add high threshold velocity for turtlebot 3 issue.
-      # https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/75
+      # TB3 sim quirk workaround kept as-is
       acc_lim_x: 2.5
       acc_lim_y: 0.0
       acc_lim_theta: 3.2
       decel_lim_x: -2.5
       decel_lim_y: 0.0
       decel_lim_theta: -3.2
-      vx_samples: 7
-      vy_samples: 1
-      vtheta_samples: 7
-      sim_time: 2.0
-      linear_granularity: 0.2
-      angular_granularity: 0.2
-      transform_tolerance: 0.2
-      xy_goal_tolerance: 1.0
+      vx_samples: 7                               # sample count in vx dimension
+      vy_samples: 1                               # no strafing
+      vtheta_samples: 7                           # sample count in yaw rate
+      sim_time: 2.0                               # rollout horizon (s)
+      linear_granularity: 0.2                     # path sampling resolution (m)
+      angular_granularity: 0.2                    # yaw sampling resolution (rad)
+      transform_tolerance: 0.2                    # TF wait tolerance (s)
+      xy_goal_tolerance: 1.0                      # duplicated (harmless)
       yaw_goal_tolerance: 0.5
-      trans_stopped_velocity: 0.25
-      short_circuit_trajectory_evaluation: True
+      trans_stopped_velocity: 0.25                # below this = “stopped”
+      short_circuit_trajectory_evaluation: True   # early-out on good candidates
       stateful: True
-      critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
-      BaseObstacle.scale: 0.02
+      critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]  # cost terms
+      BaseObstacle.scale: 0.02                    # obstacle cost weight (low; rely on inflation)
       PathAlign.scale: 32.0
       PathAlign.forward_point_distance: 0.1
       GoalAlign.scale: 32.0
@@ -178,59 +181,59 @@ controller_server:
       PathDist.scale: 32.0
       GoalDist.scale: 24.0
       RotateToGoal.scale: 32.0
-      RotateToGoal.xy_goal_tolerance: 2.0
+      RotateToGoal.xy_goal_tolerance: 2.0         # rotate-when-close tolerance (m)
       RotateToGoal.slowing_factor: 5.0
-      RotateToGoal.lookahead_time: -1.0
+      RotateToGoal.lookahead_time: -1.0           # default lookahead
 
 local_costmap:
   local_costmap:
     ros__parameters:
-      update_frequency: 5.0
-      publish_frequency: 5.0
-      global_frame: odom
+      update_frequency: 5.0                       # rebuild local costmap at 5 Hz
+      publish_frequency: 5.0                      # publish to RViz at 5 Hz
+      global_frame: odom                          # local planning frame (continuous)
       robot_base_frame: base_link
       use_sim_time: True
-      rolling_window: true
+      rolling_window: true                        # 10x10m window centered on robot
       width: 10
       height: 10
-      resolution: 0.05 
-      footprint: "[ [0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5] ]"
-      plugins: ["obstacle_layer", "inflation_layer"]
+      resolution: 0.05                            # 5 cm cells
+      footprint: "[ [0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5] ]"  # 1m square
+      plugins: ["obstacle_layer", "inflation_layer"]  # StaticLayer is defined below but not enabled here
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 3.0
-        inflation_radius: 2.0
+        cost_scaling_factor: 3.0                  # steeper decay = tighter to obstacles
+        inflation_radius: 2.0                     # radius of inflated costs (m)
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
-        observation_sources: scan
+        observation_sources: scan                  # use the lidar
         scan:
           topic: /scan
-          max_obstacle_height: 2.0
-          clearing: True
-          marking: True
+          max_obstacle_height: 2.0                # ignore hits above this (m)
+          clearing: True                          # free space raytracing
+          marking: True                           # add obstacle cells
           data_type: "LaserScan"
-          raytrace_max_range: 20.0
+          raytrace_max_range: 20.0                # clear up to 20 m
           raytrace_min_range: 0.0
-          obstacle_max_range: 10.0
+          obstacle_max_range: 10.0                # mark within 10 m
           obstacle_min_range: 0.0
       static_layer:
-        plugin: "nav2_costmap_2d::StaticLayer"
-        map_subscribe_transient_local: True
-      always_send_full_costmap: True
+        plugin: "nav2_costmap_2d::StaticLayer"    # defined but NOT in 'plugins' list above
+        map_subscribe_transient_local: True       # latched /map subscription
+      always_send_full_costmap: True              # useful for RViz; more bandwidth
 
 global_costmap:
   global_costmap:
     ros__parameters:
       update_frequency: 5.0
       publish_frequency: 5.0
-      global_frame: map
+      global_frame: map                           # global planner frame
       robot_base_frame: base_link
       use_sim_time: True
       footprint: "[ [0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5] ]"
-      resolution: 0.1
-      track_unknown_space: true
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      resolution: 0.1                              # 10 cm global grid
+      track_unknown_space: true                    # unknown treated distinctly
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]  # here StaticLayer IS enabled
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
@@ -246,7 +249,7 @@ global_costmap:
           obstacle_max_range: 10.0
           obstacle_min_range: 0.0
       static_layer:
-        plugin: "nav2_costmap_2d::StaticLayer"
+        plugin: "nav2_costmap_2d::StaticLayer"    # consumes /map (Cartographer occupancy)
         map_subscribe_transient_local: True
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
@@ -257,45 +260,44 @@ global_costmap:
 map_server:
   ros__parameters:
     use_sim_time: True
-    # Overridden in launch by the "map" launch configuration or provided default value.
-    # To use in yaml, remove the default "map" value in the tb3_simulation_launch.py file & provide full path to map below.
-    yaml_filename: ""
+    # Typically set via launch with 'map:=/path/to/map.yaml' when localizing with AMCL.
+    yaml_filename: ""                              # empty here; injected by launch
 
 map_saver:
   ros__parameters:
     use_sim_time: True
-    save_map_timeout: 5.0
-    free_thresh_default: 0.25
-    occupied_thresh_default: 0.65
-    map_subscribe_transient_local: True
+    save_map_timeout: 5.0                          # seconds to wait for save
+    free_thresh_default: 0.25                       # occ grid binarization threshold (free)
+    occupied_thresh_default: 0.65                   # occ grid binarization threshold (occupied)
+    map_subscribe_transient_local: True             # latched /map for saving
 
 planner_server:
   ros__parameters:
-    expected_planner_frequency: 20.0
+    expected_planner_frequency: 20.0               # nominal planning rate (Hz)
     use_sim_time: True
-    planner_plugins: ["GridBased"]
+    planner_plugins: ["GridBased"]                 # list of global planners
     GridBased:
-      plugin: "nav2_navfn_planner/NavfnPlanner"
-      tolerance: 0.5
-      use_astar: false
-      allow_unknown: true
+      plugin: "nav2_navfn_planner/NavfnPlanner"   # Dijkstra grid planner
+      tolerance: 0.5                               # acceptable goal proximity (m)
+      use_astar: false                             # Dijkstra vs A*
+      allow_unknown: true                          # plan through unknowns (useful during SLAM)
 
 smoother_server:
   ros__parameters:
     use_sim_time: True
-    smoother_plugins: ["simple_smoother"]
+    smoother_plugins: ["simple_smoother"]          # path post-processing
     simple_smoother:
       plugin: "nav2_smoother::SimpleSmoother"
-      tolerance: 1.0e-10
-      max_its: 1000
-      do_refinement: True
+      tolerance: 1.0e-10                           # optimizer tolerance
+      max_its: 1000                                # iteration cap
+      do_refinement: True                          # refine after initial pass
 
 behavior_server:
   ros__parameters:
-    costmap_topic: local_costmap/costmap_raw
+    costmap_topic: local_costmap/costmap_raw       # local costmap source
     footprint_topic: local_costmap/published_footprint
-    cycle_frequency: 10.0
-    behavior_plugins: ["spin", "backup", "drive_on_heading", "assisted_teleop", "wait"]
+    cycle_frequency: 10.0                          # behavior loop rate (Hz)
+    behavior_plugins: ["spin", "backup", "drive_on_heading", "assisted_teleop", "wait"]  # recoveries/utilities
     spin:
       plugin: "nav2_behaviors/Spin"
     backup:
@@ -306,41 +308,41 @@ behavior_server:
       plugin: "nav2_behaviors/Wait"
     assisted_teleop:
       plugin: "nav2_behaviors/AssistedTeleop"
-    global_frame: odom
+    global_frame: odom                             # behaviors operate locally
     robot_base_frame: base_link
     transform_tolerance: 0.1
     use_sim_time: true
-    simulate_ahead_time: 2.0
+    simulate_ahead_time: 2.0                       # internal trajectory horizon
     max_rotational_vel: 1.0
     min_rotational_vel: 0.4
     rotational_acc_lim: 3.2
 
 robot_state_publisher:
   ros__parameters:
-    use_sim_time: True
+    use_sim_time: True                             # keep TF on sim time
 
 waypoint_follower:
   ros__parameters:
     use_sim_time: True
-    loop_rate: 20
-    stop_on_failure: false
+    loop_rate: 20                                  # Hz for waypoint execution
+    stop_on_failure: false                         # continue even if one waypoint fails
     waypoint_task_executor_plugin: "wait_at_waypoint"
     wait_at_waypoint:
       plugin: "nav2_waypoint_follower::WaitAtWaypoint"
       enabled: True
-      waypoint_pause_duration: 200
+      waypoint_pause_duration: 200                 # seconds to pause at each wp (large!)
 
 velocity_smoother:
   ros__parameters:
     use_sim_time: True
-    smoothing_frequency: 20.0
-    scale_velocities: False
-    feedback: "OPEN_LOOP"
-    max_velocity: [1.0, 0.0, 1.5]
-    min_velocity: [-1.0, 0.0, -1.5]
-    max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-2.5, 0.0, -3.2]
-    odom_topic: "odom"
-    odom_duration: 0.1
-    deadband_velocity: [0.0, 0.0, 0.0]
-    velocity_timeout: 1.0
+    smoothing_frequency: 20.0                      # output cmd_vel at 20 Hz
+    scale_velocities: False                        # keep absolute limits
+    feedback: "OPEN_LOOP"                          # no closed-loop twist feedback
+    max_velocity: [1.0, 0.0, 1.5]                  # [vx, vy, vtheta] maxima
+    min_velocity: [-1.0, 0.0, -1.5]                # minima
+    max_accel: [2.5, 0.0, 3.2]                     # accel limits
+    max_decel: [-2.5, 0.0, -3.2]                   # decel limits
+    odom_topic: "odom"                             # used if CLOSED_LOOP
+    odom_duration: 0.1                             # odom timeout (s)
+    deadband_velocity: [0.0, 0.0, 0.0]             # ignore tiny commands
+    velocity_timeout: 1.0                          # cmd timeout (s)
