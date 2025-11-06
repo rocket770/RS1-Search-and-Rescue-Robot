@@ -1,0 +1,1 @@
+rclcpp;std_msgs;sensor_msgs;geometry_msgs;std_srvs;ros_image_to_qimage;qtbase5-dev

@@ -1,0 +1,4 @@
+source;share/usergui/local_setup.bash
+source;share/usergui/local_setup.dsv
+source;share/usergui/local_setup.sh
+source;share/usergui/local_setup.zsh
