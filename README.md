@@ -5,6 +5,10 @@ This repository provides the setup instructions and launch configurations for th
 ---
 
 ## Installation Guide
+### 0. Download or clone the repository
+```bash
+git clone https://github.com/rocket770/RS1-Search-and-Rescue-Robot.git
+```
 
 ### 1. Install PIP
 ```bash
@@ -58,7 +62,7 @@ sudo apt install ros-hubmle-ros-image-to-qimage
 
 ### 1. Build the Workspace
 ```bash
-cd RS1-SEARCH-AND-RESCUE-ROBOT  # or your repo name
+cd RS1-SEARCH-AND-RESCUE-ROBOT  # MUST be ran in the same directory the repository was cloned/downloaded into. 
 colcon build --symlink-install
 source install/setup.bash
 ```
@@ -93,6 +97,15 @@ This usually isn't required, as the package prefix is handled automatically in:
 ```
 41068_ignition_bringup/CMakeLists.txt
 ```
+Other common issues:
+
+| Issue | Solution |
+|--------|-----------|
+| Project takes too long to open | Restart the project, and then the computer and retry. Sometimes it can take some time to launch especially if the extra_large world is chosen. Try using the launch parameters to open without as many nodes or the smaller world. |
+| Robot does not move even though a path is generated | Wait up to 10 seconds (up to a minute if on very slow hardware) or overwrite its current goal by providing a new goal via the UI. |
+| Environment does not open | First delete build, log, and install folders in the project directory, rebuild, source and run. If persistent, look for an error like this in terminal:  ```bash [ign gazebo-3] [Err] [Server.cc:139] Error Code 13: [/sdf/world[@name="Large"]/include[27]/uri:/home/user/rsi_ws/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/large.sdf:L246]: Msg: Unable to find uri[package://41068_ignition_bringup/models/Animal_Models/duck]``` If this occurs, you may need to run this command first, although it should not be necessary: export GZ_SIM_RESOURCE_PATH=$GZ_SIM_RESOURCE_PATH:$(ros2 pkg prefix 41068_ignition_bringup)/share/41068_ignition_bringup |
+| Gazebo flashes constantly and simulation does not execute | Restart computer and retry. |"""
+
 
 ---
 
@@ -106,6 +119,7 @@ This usually isn't required, as the package prefix is handled automatically in:
 | **yolo** | `true`, `false` | Enables animal detection and monitoring. May cause lag on older CPUs. | False |
 | **slam** | `true`, `false` | Enables autonomous SLAM navigation. Requires `nav2 := true`. | True |
 | **battery** | `true`, `false` | Enables battery drain and charging simulation. | True |
+
 
 ---
 
