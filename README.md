@@ -17,7 +17,7 @@ sudo apt install python3-pip
 *(Assumes ROS2 Humble, Gazebo, and Ignition Fortress are already installed)*
 
 #### YOLO (CPU)
-> Although GPU is supported in the code, testing has been done **only on CPU**.
+> Although GPU is supported in the code (if relevant packages are installed), testing has been done **only on CPU**.
 
 Remove the too-new version of `numpy`:
 ```bash
