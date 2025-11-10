@@ -1,6 +1,6 @@
 # RS1 Search and Rescue Robot
 
-This repository provides the setup instructions and launch configurations for the **RS1 Search and Rescue Robot** project. The robot utilizes ROS2 (Humble), Gazebo, and Ignition Fortress for simulation, and YOLO for animal detection.
+This repository provides the setup instructions and launch configurations for the **RS1 Search and Rescue Robot** project. The robot utilizes ROS2 (Humble), Gazebo, and Ignition Fortress for simulation.
 
 ---
 
