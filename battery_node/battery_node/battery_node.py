@@ -59,6 +59,7 @@ class BatterySimNode(Node):
         self.get_logger().info(f"BatterySim: using Twist from '{self.velocity_topic}' (e.g., Nav2 cmd_vel)")
         self._twist_sub = self.create_subscription(Twist, self.velocity_topic, self._on_twist, qos)
 
+        # simulate charging but instant for demo purpose
         self.reset_srv = self.create_service(Empty, 'reset_battery', self._on_reset)
 
         period = 1.0 / max(self.publish_rate_hz, 1e-3)
@@ -74,6 +75,7 @@ class BatterySimNode(Node):
         self._last_twist = msg.twist.twist
 
     def _on_reset(self, _req, _resp):
+        # instantly set to 100, just used to simulate it actually works
         self.percentage = 100.0
         self.get_logger().info("BatterySim: reset to 100%")
         return _resp  # Empty response OK
@@ -93,7 +95,7 @@ class BatterySimNode(Node):
         if dt <= 0.0:
             return
 
-        # Get current speeds (m/s and rad/s). but otherwise assume stationary.
+        # Get current speeds (m/s and rad/s). but otherwise assume still
         vx = vy = wz = 0.0
         if self._last_twist is not None:
             vx = float(self._last_twist.linear.x)
@@ -133,6 +135,7 @@ class BatterySimNode(Node):
 
         msg.voltage = self.voltage_empty + (self.voltage_full - self.voltage_empty) * pct01
 
+        # convention for not measured float(nan)
         msg.current = float('nan')   
         msg.charge = float('nan')
         msg.capacity = float('nan')

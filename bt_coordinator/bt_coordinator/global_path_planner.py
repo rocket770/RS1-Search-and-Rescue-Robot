@@ -16,9 +16,11 @@ class GlobalPathPlanner(Node):
     def __init__(self):
         super().__init__('global_path_planner')
 
+        # Parameters these 2can be overridden in launch
         self.declare_parameter('home_pose_xy', [0.0, 0.0])
         self.declare_parameter('frame_id', 'map')
 
+        # Topics and action names
         self.declare_parameter('planner_action', '/planner_server/compute_path_to_pose')
         self.declare_parameter('goal_topic', '/static_path/goal')
         self.declare_parameter('marker_topic', '/static_paths/markers')
@@ -34,6 +36,9 @@ class GlobalPathPlanner(Node):
         self.marker_width = float(self.get_parameter('marker_width').value)
         self.marker_alpha = float(self.get_parameter('marker_alpha').value)
 
+        # "Latched" behavior in ROS 2 using TRANSIENT_LOCAL durability.
+        # Wehad an issue where path is not always published, seemed to help a little bit
+        # https://docs.ros.org/en/foxy/Concepts/About-Quality-of-Service-Settings.html
         latched = QoSProfile(
             depth=1,
             reliability=ReliabilityPolicy.RELIABLE,
@@ -41,6 +46,7 @@ class GlobalPathPlanner(Node):
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
         )
 
+         # Publishers for the full path and its visualization markers
         self.path_pub = self.create_publisher(Path, '/static_paths/all_paths', latched)
         self.marker_pub = self.create_publisher(MarkerArray, self.marker_topic, latched)
 
@@ -49,6 +55,7 @@ class GlobalPathPlanner(Node):
 
         self.action_client = ActionClient(self, ComputePathToPose, self.planner_action)
 
+        # Listen for new goals to trigger planning
         self.create_subscription(PoseStamped, self.goal_topic, self._on_goal, 10)
 
         self.get_logger().info(
@@ -57,10 +64,12 @@ class GlobalPathPlanner(Node):
         )
 
     def _on_goal(self, goal: PoseStamped) -> None:
+        #wait for nav2 to be ready
         if not self.action_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error("Planner action server no worky.")
             return
 
+        # Build a start pose from the provided home (default 0,0 in ours) position
         start = PoseStamped()
         start.header.frame_id = self.frame_id
         start.pose.position.x = self.home_x
@@ -73,7 +82,7 @@ class GlobalPathPlanner(Node):
         goal_msg = ComputePathToPose.Goal()
         goal_msg.start = start
         goal_msg.goal = goal
-        goal_msg.use_start = True
+        goal_msg.use_start = True # use the provided one from above, false = robots pose
         goal_msg.planner_id = '' # should just be default planner me thinks
 
         gx, gy = goal.pose.position.x, goal.pose.position.y
@@ -82,7 +91,7 @@ class GlobalPathPlanner(Node):
         send_future = self.action_client.send_goal_async(goal_msg)
         send_future.add_done_callback(lambda f: self._on_goal_response(goal, f))
 
-
+    # callback is called when we receive confrimation from nav2 that the goal was planned and provided
     def _on_goal_response(self, goal: PoseStamped, future) -> None:
         try:
             goal_handle = future.result()
@@ -95,8 +104,10 @@ class GlobalPathPlanner(Node):
             return
 
         result_future = goal_handle.get_result_async()
+        # once we got the path publish it
         result_future.add_done_callback(lambda f: self._on_path_result(goal, f))
 
+    # publishes the path
     def _on_path_result(self, goal: PoseStamped, future) -> None:
         if future.cancelled():
             self.get_logger().error("Planner result future was cancelled.")
@@ -110,6 +121,7 @@ class GlobalPathPlanner(Node):
         result = future.result().result
         path: Path = result.path
 
+        # i thought that the path not publishing might be a timeing thing - should help downstream subscirbers
         now = self.get_clock().now().to_msg()
 
         if not path.header.frame_id:
@@ -128,10 +140,10 @@ class GlobalPathPlanner(Node):
         marker.action = Marker.ADD
         marker.scale.x = self.marker_width
         marker.color.r = 0.0
-        marker.color.g = 1.0
+        marker.color.g = 1.0 # purple = robot path in rviz, green is our static
         marker.color.b = 0.0
         marker.color.a = self.marker_alpha
-        marker.lifetime = RosDuration(sec=0)  # persistent
+        marker.lifetime = RosDuration(sec=0)  # persistent so they stay
         marker.pose.orientation.w = 1.0
 
         for p in path.poses:
@@ -140,7 +152,7 @@ class GlobalPathPlanner(Node):
             q.y = p.pose.position.y
             q.z = 0.0
             marker.points.append(q)
-
+        # store every path markers we've publihsed so far, so that the next time we publish a path it also publishes the previous ones!
         self.marker_array.markers.append(marker)
         self.marker_pub.publish(self.marker_array)
 

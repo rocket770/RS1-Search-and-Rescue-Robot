@@ -24,12 +24,16 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
 from collections import deque
 
+# https://stackoverflow.com/questions/5782658/extracting-yaw-from-a-quaternion
+# fast peformance minded way to do it i found above
 def yaw_from_quat(q: Quaternion) -> float:
     ysqr = q.y * q.y
     t3 = +2.0 * (q.w * q.z + q.x * q.y)
     t4 = +1.0 - 2.0 * (ysqr + q.z * q.z)
     return math.atan2(t3, t4)
 
+# https://stackoverflow.com/questions/5782658/extracting-yaw-from-a-quaternion
+# but z only rotation
 def make_quat_from_yaw(yaw: float) -> Quaternion:
     q = Quaternion()
     q.z = math.sin(yaw / 2.0)
@@ -76,7 +80,9 @@ class BTCoordinator(Node):
         self.sub_detect2d = self.create_subscription(Detection2DArray, self.detection_topic, self._on_det, 10)
 
         self._wait_for_service(self.srv_reset_batt, "/reset_battery")
-
+        # "Latched" behavior in ROS 2 using TRANSIENT_LOCAL durability.
+        # Wehad an issue where path is not always published, seemed to help a little bit
+        # https://docs.ros.org/en/foxy/Concepts/About-Quality-of-Service-Settings.html
         qos = QoSProfile(
             depth=1,
             reliability=ReliabilityPolicy.RELIABLE,
@@ -84,6 +90,7 @@ class BTCoordinator(Node):
         )
         self.pub_explore_resume = self.create_publisher(Bool, "/explore/resume", qos)
 
+        # since it updates qyuick, dont really worry about some dropping
         battery_qos = QoSProfile(
             depth=10,
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -126,6 +133,7 @@ class BTCoordinator(Node):
         self._manual_paused_once = False
         self._explore_was_paused = False
 
+    # proceed even if service isnt up
     def _wait_for_service(self, client, name):
         if not client.service_is_ready():
             self.get_logger().warn(f"Waiting for service {name} ...")
@@ -193,6 +201,7 @@ class BTCoordinator(Node):
         self._resume_explore()
         self.state = self.ST_EXPLORE
 
+        # surpress for time so we don't instantly go back into detection mode - this should give it some time to move away if needed
         if self._manual_paused_once:
             now = time.time()
             self.suppress_detections_until = now + float(self.post_manual_resume_suppress_secs)
@@ -213,6 +222,7 @@ class BTCoordinator(Node):
     def _on_battery(self, msg: BatteryState):
         if msg.percentage != msg.percentage:  #nan thigny
             return
+        # when the threshold is reached, cancel everything with preempt and priotirise going home, speed up (is this realistic? should we slow down when battery is low irl)
         if msg.percentage < self.battery_threshold:
             if self.state != self.ST_TO_DOCK:
                 self.get_logger().warn(f"Battery low ({msg.percentage:.2f}); returning home.")
@@ -259,12 +269,12 @@ class BTCoordinator(Node):
         
         frame = getattr(arr.header, "frame_id", "") or self.map_frame
 
-        # Strategy: pick the highest-score (class, pose) pair from the first detection that has a pose. 
+        # Strategy: pick the highest score (class, pose) pair from the first detection that has a pose
         for det in arr.detections:
             if not det.results:
                 continue
 
-            # sort results by score desc
+            # sort results by score desc, chose best
             best = max(det.results, key=lambda r: getattr(getattr(r, "hypothesis", None), "score", 0.0))
             hyp = best.hypothesis
             cls = getattr(hyp, "class_id", None)
@@ -282,11 +292,13 @@ class BTCoordinator(Node):
             x, y = float(p.x), float(p.y)
             yaw_det = yaw_from_quat(o)
 
+            # publish the static path if we havent publihs this exact path before    
             pt = (round(x),round(y))
             if pt not in self.global_paths:
                 self._publish_static_goal(x, y, frame)
                 self.global_paths.add(pt)
 
+            #  approach the animal but infront of it a bit
             ax = x - self.approach_distance * math.cos(yaw_det)
             ay = y - self.approach_distance * math.sin(yaw_det)
             ayaw = math.atan2(y - ay, x - ax)

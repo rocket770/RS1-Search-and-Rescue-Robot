@@ -49,6 +49,7 @@ class ToggleTimeNode(Node):
             '--timeout', '3000',
             '--req', req_str
         ]
+        # run the cmd line command
         out = subprocess.run(cmd, capture_output=True, text=True, check=False)
         ok = ("data: true" in out.stdout) or ("data: true" in out.stderr)
         msg = (out.stdout + out.stderr).strip()
