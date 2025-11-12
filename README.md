@@ -24,11 +24,6 @@ sudo apt install python3-pip
 #### YOLO (CPU)
 > Although GPU is supported in the code (if relevant packages are installed), testing has been done **only on CPU**.
 
-Remove the too-new version of `numpy`:
-```bash
-python3 -m pip uninstall -y numpy
-```
-
 Install YOLO:
 ```bash
 pip3 install ultralytics
@@ -42,6 +37,11 @@ python3 -m pip install "opencv-python<=4.8.1.78" --user
 Install PyTorch (CPU version):
 ```bash
 python3 -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+```
+
+Remove the too-new version of `numpy`:
+```bash
+python3 -m pip uninstall -y numpy
 ```
 
 Reinstall a compatible version (< 2.0) for `cv_bridge`:
