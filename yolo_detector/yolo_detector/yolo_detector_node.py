@@ -22,13 +22,13 @@ from math import sqrt
 
 import threading, subprocess, re, sys, time
 
-
+# Reads ignition/gazebo pose info via the CLI streaming 
 class IgnitionPoseWatcher:
 
     def __init__(self, topic: str, cli: str = "ign"):
         self.topic = topic
         self.cli = cli  
-        self._poses = {}            
+        self._poses = {} # {entity_name: {x,y,z}}            
         self._lock = threading.Lock()
         self._stop = False
         self._t = threading.Thread(target=self._run, daemon=True)
@@ -42,6 +42,8 @@ class IgnitionPoseWatcher:
             return self._poses.get(name)
 
     def _run(self):
+        # Start a subprocess streaming the Ignition topic output
+        # Parses text output for entity names and positions
         cmd = [self.cli, "topic", "-t", self.topic, "-e"]
         try:
             p = subprocess.Popen(
@@ -58,6 +60,8 @@ class IgnitionPoseWatcher:
 
         name = None; x = y = z = None
         in_pose = False; in_pos = False
+
+        # regex patten to look for enetity names and xyz pose positions
         rx_name = re.compile(r'^\s*name:\s*"([^"]+)"')
         rx_xyz  = re.compile(r'^\s*([xyz]):\s*([-+0-9.eE]+)')
 
@@ -119,9 +123,9 @@ class YoloDetectorNode(Node):
 
         self.declare_parameter('name_aliases', '')
 
-        self.model_path   = self.get_parameter('model_path').value
-        self.conf_thres   = float(self.get_parameter('conf_thres').value)
-        self.iou_thres    = float(self.get_parameter('iou_thres').value)
+        self.model_path = self.get_parameter('model_path').value
+        self.conf_thres = float(self.get_parameter('conf_thres').value)
+        self.iou_thres = float(self.get_parameter('iou_thres').value)
         self.target_frame = self.get_parameter('target_frame').value
 
         self.ign_topic = self.get_parameter('ign_topic').value
@@ -130,6 +134,7 @@ class YoloDetectorNode(Node):
         aliases_str = self.get_parameter('name_aliases').value.strip()
         self.name_alias = self._parse_aliases(aliases_str)
 
+        # try use the gpu, otherwise default to cpu
         self.device = 0 if torch.cuda.is_available() else "cpu"
         self.get_logger().info(f"Using device: {'CUDA:0' if self.device == 0 else 'CPU'}")
 
@@ -142,19 +147,20 @@ class YoloDetectorNode(Node):
 
         self.bridge = CvBridge()
 
+        # start the pose watcher as a background process in the class
         self.get_logger().info(f"Starting Pose_V watcher on {self.ign_cli} topic: {self.ign_topic}")
         self.pose_watcher = IgnitionPoseWatcher(self.ign_topic, cli=self.ign_cli)
 
         reliable_qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE,
                                   history=HistoryPolicy.KEEP_LAST)
 
-        sub_rgb   = message_filters.Subscriber(self, Image, '/camera/image', qos_profile=reliable_qos)
+        sub_rgb = message_filters.Subscriber(self, Image, '/camera/image', qos_profile=reliable_qos)
 
         ats = message_filters.ApproximateTimeSynchronizer([sub_rgb], queue_size=10, slop=0.1)
         ats.registerCallback(self.cb)
 
-        self.pub_det    = self.create_publisher(Detection2DArray, '/yolo_detector/detections', 10)
-        self.pub_image  = self.create_publisher(Image, '/yolo_detector/detections/image', reliable_qos)
+        self.pub_det = self.create_publisher(Detection2DArray, '/yolo_detector/detections', 10)
+        self.pub_image = self.create_publisher(Image, '/yolo_detector/detections/image', reliable_qos)
         self.pub_global = self.create_publisher(Detection2DArray, '/yolo_detector/global_detections', 10)
 
         # persistent global list: {'class': str, 'point': Point, 'score': float, 'count': int}
@@ -178,7 +184,9 @@ class YoloDetectorNode(Node):
     @staticmethod
     def _dist_xy(a: Point, b: Point) -> float:
         return ((a.x - b.x)**2 + (a.y - b.y)**2) ** 0.5
-
+    
+    # Global detections persist across frames
+    # If a new detection of the same class appears within 0.5 m, update instead of adding
     def _add_to_global_if_new(self, class_id: str, p: Point, score: float) -> bool:
         for g in self.global_dets:
             if g['class'] != class_id:
@@ -261,6 +269,7 @@ class YoloDetectorNode(Node):
 
                 world_x, world_y, world_z = xyz
 
+                # BUild detection2d and poserstamped
                 out = PoseStamped()
                 out.header = rgb_msg.header
                 out.header.frame_id = self.target_frame
@@ -283,6 +292,7 @@ class YoloDetectorNode(Node):
                 hyp.pose.pose.position = out.pose.position
                 det.results.append(hyp)
 
+                ## add boudning box in the pixel space
                 bb = BoundingBox2D()
                 bb.center.position.x = float(u)
                 bb.center.position.y = float(v)

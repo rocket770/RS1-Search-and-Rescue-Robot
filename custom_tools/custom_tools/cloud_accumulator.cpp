@@ -21,19 +21,22 @@ public:
     tf_buffer_(this->get_clock()),
     tf_listener_(tf_buffer_)
   {
-    input_topic_  = this->declare_parameter<std::string>("input_topic", "/camera/depth/points");
+    input_topic_ = this->declare_parameter<std::string>("input_topic", "/camera/depth/points");
     output_topic_ = this->declare_parameter<std::string>("output_topic", "/accumulated_cloud");
     target_frame_ = this->declare_parameter<std::string>("target_frame", "map");
     publish_rate_ = this->declare_parameter<double>("publish_rate", 0.5);   
-    stride_       = this->declare_parameter<int>("stride", 4); // we basically llike skip over every 'stride' points to avoid lag
-    tf_cache_sec_ = this->declare_parameter<double>("tf_cache_sec", 0.2);   
+    stride_ = this->declare_parameter<int>("stride", 4); // we basically llike skip over every 'stride' points to avoid lag
+    tf_cache_sec_ = this->declare_parameter<double>("tf_cache_sec", 0.2);   // amount of time we use a TF message for
 
+
+    // sensor data qos for high rate reading, can likely be dropped down in future since publihs slow
     cloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
       input_topic_, rclcpp::SensorDataQoS(),
       std::bind(&CloudAccumulator::cloudCallback, this, std::placeholders::_1));
 
     cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(output_topic_, 10);
 
+    // publish new UI periodcally so we don't overload rviz and cause more lag
     publish_timer_ = this->create_wall_timer(
       std::chrono::duration<double>(1.0 / publish_rate_),
       std::bind(&CloudAccumulator::publishCloud, this));
@@ -76,7 +79,7 @@ private:
     geometry_msgs::msg::TransformStamped transform;
     rclcpp::Time now = this->now();
 
-    // found this idea online, but basically only does lookups every n seconds as this can be laggy
+    // found this idea online, but its a simple TF cache, avoiding a lookup every frame
     bool need_new_tf = true;
     if (last_tf_time_.nanoseconds() > 0) {
       if ((now - last_tf_time_).seconds() < tf_cache_sec_) {
@@ -85,6 +88,7 @@ private:
       }
     }
 
+    // get the new transform
     if (need_new_tf) {
       try {
         transform = tf_buffer_.lookupTransform(
@@ -100,7 +104,9 @@ private:
       }
     }
 
+
     sensor_msgs::msg::PointCloud2 cloud_in_target;
+    // convert from camera frame to world frame
     try {
       tf2::doTransform(*msg, cloud_in_target, transform);
     } catch (const tf2::TransformException & ex) {
@@ -113,6 +119,7 @@ private:
     sensor_msgs::msg::PointCloud2 downsampled;
     downsampleByStride(cloud_in_target, downsampled, stride_);
 
+    // add new points to the final list, and publish it using timer
     appendToMaster(downsampled);
   }
 
@@ -122,13 +129,14 @@ private:
     int stride)
   {
     if (stride <= 1) {
-      out = in;
+      out = in; 
       return;
     }
 
+    // fill metadata
     out.header = in.header;
     out.height = 1;
-    out.is_dense = false;
+    out.is_dense = false; // may include nans
     out.fields = in.fields;
     out.point_step = in.point_step;
     out.is_bigendian = in.is_bigendian;
@@ -136,9 +144,11 @@ private:
     const size_t in_points = static_cast<size_t>(in.width) * static_cast<size_t>(in.height);
     const size_t in_step = in.point_step;
 
+    // try reduce reallocations to make it faster
     out.data.reserve(in.data.size() / stride);
 
     size_t kept = 0;
+    // skip through points to reduce the size of the accumulated points 
     for (size_t i = 0; i < in_points; i += stride) {
       const uint8_t * src = &in.data[i * in_step];
       out.data.insert(out.data.end(), src, src + in_step);
@@ -151,6 +161,7 @@ private:
 
   void appendToMaster(const sensor_msgs::msg::PointCloud2 & in)
   {
+    // first cloud becomes the basem and add on everything later
     if (!has_master_) {
       master_cloud_ = in;
       master_data_ = in.data;

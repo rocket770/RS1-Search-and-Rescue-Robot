@@ -21,13 +21,13 @@ class NightVisionNode(Node):
         self.declare_parameter('vignette_strength', 0.2)
         self.declare_parameter('publish_hz', 1.0)  
 
-        self.in_topic  = self.get_parameter('in_image').value
+        self.in_topic = self.get_parameter('in_image').value
         self.out_topic = self.get_parameter('out_image').value
         self.noise_std = float(self.get_parameter('noise_stddev').value)
-        self.gain      = float(self.get_parameter('gain').value)
-        self.clip      = float(self.get_parameter('clahe_clip').value)
-        self.vign      = float(self.get_parameter('vignette_strength').value)
-        self.pub_hz    = float(self.get_parameter('publish_hz').value)
+        self.gain = float(self.get_parameter('gain').value)
+        self.clip = float(self.get_parameter('clahe_clip').value)
+        self.vign = float(self.get_parameter('vignette_strength').value)
+        self.pub_hz = float(self.get_parameter('publish_hz').value)
 
         self.bridge = CvBridge()
         self.pub = self.create_publisher(Image, self.out_topic, 10)
@@ -44,15 +44,21 @@ class NightVisionNode(Node):
         self.timer = self.create_timer(period, self._timer_publish)
 
     # builds and cache a radial vignette mask by darkneuing pixels away from the center limited to a specific brigthness
+    # in darkens toward image edges
     def _vignette_mask(self, h, w):
         key = (h, w)
         if key in self.vignette_cache:
             return self.vignette_cache[key]
+        
+        # get centre
         y, x = np.indices((h, w))
         cx, cy = w/2.0, h/2.0
+
         r = np.sqrt((x - cx)**2 + (y - cy)**2)
         r /= r.max() + 1e-6
         mask = 1.0 - self.vign * (r**2)
+        
+        # keep the mask subtle
         mask = np.clip(mask, 0.5, 1.0).astype(np.float32)
         self.vignette_cache[key] = mask
         return mask
@@ -67,17 +73,20 @@ class NightVisionNode(Node):
         gray = cv2.convertScaleAbs(gray, alpha=self.gain, beta=0)
         gray = self.clahe.apply(gray)
 
+        # adding noise makes it look a bit more realistic
         noise = np.random.normal(0, self.noise_std, gray.shape).astype(np.float32)
         noisy = np.clip(gray.astype(np.float32) + noise, 0, 255).astype(np.uint8)
 
         g = noisy
-        b = (noisy * 0.15).astype(np.uint8)
+        b = (noisy * 0.15).astype(np.uint8) # only take some compoennts of b and r
         r = (noisy * 0.05).astype(np.uint8)
         nvg = cv2.merge([b, g, r])
 
+        # bloom glowy effect
         blur = cv2.GaussianBlur(nvg, (0,0), 1.5)
         nvg = cv2.addWeighted(nvg, 1.0, blur, 0.35, 0)
 
+        # apply the vignette mask
         h, w = nvg.shape[:2]
         mask = self._vignette_mask(h, w)
         nvg = (nvg.astype(np.float32) * mask[...,None]).clip(0,255).astype(np.uint8)
@@ -87,6 +96,7 @@ class NightVisionNode(Node):
         return out
 
     def _cb_store_latest(self, msg: Image):
+        # Keep the newest frame - timer will process at a fixed rate
         self._latest_msg = msg
 
     def _cb_process_and_publish(self, msg: Image):
@@ -95,7 +105,7 @@ class NightVisionNode(Node):
             self.pub.publish(out)
         except Exception as e:
             self.get_logger().warn(f"processing error: {e}")
-
+    
     def _timer_publish(self):
         if self._latest_msg is None:
             return

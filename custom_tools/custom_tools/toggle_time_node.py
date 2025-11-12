@@ -55,6 +55,7 @@ class ToggleTimeNode(Node):
         msg = (out.stdout + out.stderr).strip()
         return ok, msg
 
+    # on button press, call this (cb) and handle the toggle based on the current
     def handle_toggle(self, request, response):
         target = "night" if not self.is_night else "day"
         req_str = self.req_night if not self.is_night else self.req_day
