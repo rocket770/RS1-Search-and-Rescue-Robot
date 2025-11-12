@@ -8,7 +8,8 @@
 #include <sensor_msgs/msg/battery_state.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
-#include <QTimer> // check for ros messages
+// Timer that calls rclcpp::spin_some() without block Qt event loop and enables ros messages
+#include <QTimer>  
 
 #include <QPixmap>
 
@@ -44,14 +45,18 @@ private slots:
     // change the speed of robot
     void on_speedChange_valueChanged(double arg1);
 
+    // ros processes messages without blocking GUI event loop
+    // calls QTimer frequently for ROS node to send messages
     void rosmsgs() {
-        rclcpp::spin_some(node_); // ros processes messages without blocking GUI event loop
+        rclcpp::spin_some(node_); 
     }
 
+    // To determine which camera output is selected
     void on_cameraSelection_currentIndexChanged(int index);
 
 private:
 
+    // https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries.html 
     // For subscribing and publishing
     // https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Writing-A-Simple-Cpp-Publisher-And-Subscriber.html
     // https://robotisim.com/ros2-cpp-node-for-begginers/
@@ -64,15 +69,25 @@ private:
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr resume_explore_client_;
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr toggle_time_client_;
 
+    // Enable timer to send ROS2 messages
     QTimer *ros_timer_;
 
     double linear_speed_ = 0.5;  // m/s
     double angular_speed_ = 1.0; // rad/s
 
+    // Callback to convert ROS Image to QImage to display on GUI
     void obtainImage(const sensor_msgs::msg::Image::SharedPtr msg);
+
+    // Publish velocity commands to Husky
     void publishvelocity(double linear_x, double angular_z);
+
+    // Obtains the percentage from Battery node
     void obtainBattery(const sensor_msgs::msg::BatteryState::SharedPtr msg);
+
+    // Subscribes to a new camera topic out of the main 3
     void subToImageTopic(const std::string &topic_name);
+
+    // set the current camera topic
     std::string current_image_topic_;
 
 };

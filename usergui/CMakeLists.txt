@@ -13,9 +13,9 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# -----------------------
+# =================
 # ros2 dependencies
-# -----------------------
+# =================
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -25,9 +25,9 @@ find_package(std_srvs REQUIRED)
 
 find_package(ros_image_to_qimage REQUIRED)
 
-# -----------------------
+# ===============
 # qt dependencies
-# -----------------------
+# ===============
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets LinguistTools REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets LinguistTools REQUIRED)
 
@@ -68,9 +68,9 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
-#----------------
+#===================================
 # Target link and ament dependancies
-#----------------
+#===================================
 target_link_libraries(usergui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
 ament_target_dependencies(usergui PUBLIC

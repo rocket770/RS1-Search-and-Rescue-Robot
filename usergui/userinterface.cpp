@@ -10,11 +10,15 @@ userinterface::userinterface(QWidget *parent)
     ui->setupUi(this);
 
     // the ros node
+    // https://docs.ros.org/en/crystal/Tutorials/Writing-A-Simple-Cpp-Service-And-Client.html
     node_ = std::make_shared<rclcpp::Node>("usergui_node");
 
     //current_image_topic_ = "/camera/image";
     //subToImageTopic(current_image_topic_);
 
+    // https://doc.qt.io/qt-6/qcombobox.html#addItem
+    // Add camera topics to the drop down
+    // Ensure Qstring from the regular string
     ui->cameraSelection->addItem(QString::fromStdString("/camera/image"));
     ui->cameraSelection->addItem(QString::fromStdString("/yolo_detector/detections/image"));
     ui->cameraSelection->addItem(QString::fromStdString("/night_vision/image"));
@@ -24,16 +28,18 @@ userinterface::userinterface(QWidget *parent)
     //    "/camera/image", rclcpp::SensorDataQoS(), std::bind(&userinterface::obtainImage, this, std::placeholders::_1));
 
     current_image_topic_ = "/camera/image";  // default topic
-    subToImageTopic(current_image_topic_);
+    subToImageTopic(current_image_topic_); // calls function to ensure we subscribe to that camera topic
 
 
     // publish movement to robot
     velocity = node_->create_publisher<geometry_msgs::msg::Twist> (
         "/ui/move", 10);
 
+    // Obtain the battery node percentage
     subtoBattery = node_->create_subscription<sensor_msgs::msg::BatteryState>(
         "/battery_state", rclcpp::SensorDataQoS(), std::bind(&userinterface::obtainBattery, this, std::placeholders::_1));
     
+    // client to receive service after 
     resume_explore_client_ =
         node_->create_client<std_srvs::srv::Trigger>("/user/resume_explore");
     
@@ -59,6 +65,8 @@ userinterface::~userinterface() {
 
 // Sending velocity
 // https://stackoverflow.com/questions/43515772/subscribing-and-publishing-geometry-twist-messages-from-turtlesim
+// The idea is that it publishes the commands to ui/move topic 
+// Calling the function publishes the speed defined in the header files
 void userinterface::publishvelocity(double linear_x, double angular_z)
 {
     auto msg = geometry_msgs::msg::Twist();
@@ -91,24 +99,29 @@ void userinterface::on_stopButton_clicked() {
 }
 
 
-// To change the environment within the simulation
+// To change the environment within the simulation between day and night
+// Trigger service request for /toggle_tiem
+// https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Writing-A-Simple-Cpp-Service-And-Client.html
 void userinterface::on_dayShift_clicked()
 {
 
-    //  brief debounce so a double click dont spam requests
+    // brief debounce so a double click dont spam requests
     ui->dayShift->setEnabled(false);
 
+    // Request for trigger service
     auto req = std::make_shared<std_srvs::srv::Trigger::Request>();
 
+    // send request for the shift to day / night
     (void)toggle_time_client_->async_send_request(req);
 
-    // the debounce, re enable after 250ms
+    // The debounce, re enable after 250ms, to avoid spam
+    // https://doc.qt.io/qt-6/qtimer.html#singleShot
     QTimer::singleShot(250, this, [this]{
         ui->dayShift->setEnabled(true);
     });
 }
 
-// Change from Autonomy to Manual movement
+// Change from Manual to Autonomous movement
 void userinterface::on_moveShift_clicked()
 {
     //RCLCPP_INFO(node_->get_logger(), "Hit!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!.");
@@ -116,8 +129,10 @@ void userinterface::on_moveShift_clicked()
     //  brief debounce so a double click dont spam requests
     ui->moveShift->setEnabled(false);
 
+    // Make a request
     auto req = std::make_shared<std_srvs::srv::Trigger::Request>();
 
+    // Send it to service to enable autonomous movement
     (void)resume_explore_client_->async_send_request(req);
 
     // the debounce, re enable after 250ms
@@ -127,12 +142,13 @@ void userinterface::on_moveShift_clicked()
 }
 
 
-// Change of battery
+// Change of battery... utilised personalised function below
 void userinterface::on_batteryLevel_valueChanged(int value)
 {
 
 }
 
+// Obtain the level of the battery from the /battery_state topic
 void userinterface::obtainBattery(const sensor_msgs::msg::BatteryState::SharedPtr msg)
 {
 
@@ -144,28 +160,29 @@ void userinterface::obtainBattery(const sensor_msgs::msg::BatteryState::SharedPt
 }
 
 // For the camera
+// Package below
 // https://index.ros.org/p/ros_image_to_qimage/#humble-overview
 void userinterface::obtainImage(const sensor_msgs::msg::Image::SharedPtr msg) {
-    // Should turn the ros image from the husky cam to a QImage
+    // Converts the ros image from the husky cam to a QImage used by the GUI
     QImage qimg = ros_image_to_qimage::Convert(*msg);
 
-    // Display it on the gui
+    // Display it on the GUI
     // https://stackoverflow.com/questions/6913575/programatically-setting-the-pixmap-of-a-qlabel-in-qt
     ui->cameraDisplay->setPixmap(QPixmap::fromImage(qimg));
 }
 
-
-
-
+// Didn't update properly, only for manual movement
 void userinterface::on_speedChange_valueChanged(double arg1)
 {
 
 }
 
-
-
-
-
+// If the new selected camera topic is not the current one
+// Change to the new topic
+// Ensure to select the correct topic at the correct index
+// https://doc.qt.io/qt-6/qcombobox.html
+// Change from QString to standard string
+// https://stackoverflow.com/questions/4214369/how-to-convert-qstring-to-stdstring
 void userinterface::on_cameraSelection_currentIndexChanged(int index) {
     QString selected = ui->cameraSelection->itemText(index);
     std::string topic = selected.toStdString();
@@ -175,6 +192,8 @@ void userinterface::on_cameraSelection_currentIndexChanged(int index) {
     }
 }
 
+// Reset the current topic
+// Ensure to create new subscription to new topic
 void userinterface::subToImageTopic(const std::string &topic_name) {
     subToImage.reset();
 

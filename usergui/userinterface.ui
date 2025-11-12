@@ -128,6 +128,15 @@
     <property name="decimals">
      <number>0</number>
     </property>
+    <property name="minimum">
+     <double>1.000000000000000</double>
+    </property>
+    <property name="maximum">
+     <double>2.000000000000000</double>
+    </property>
+    <property name="singleStep">
+     <double>0.100000000000000</double>
+    </property>
    </widget>
    <widget class="QComboBox" name="cameraSelection">
     <property name="geometry">
