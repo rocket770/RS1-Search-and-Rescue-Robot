@@ -12,6 +12,7 @@ git clone https://github.com/rocket770/RS1-Search-and-Rescue-Robot.git
 
 ### 1. Install PIP
 ```bash
+sudo apt update
 sudo apt install python3-pip
 ```
 
@@ -28,17 +29,12 @@ Remove the too-new version of `numpy`:
 python3 -m pip uninstall -y numpy
 ```
 
-Reinstall a compatible version (< 2.0) for `cv_bridge`:
-```bash
-python3 -m pip install "numpy<2.0" --user --upgrade
-```
-
 Install YOLO:
 ```bash
 pip3 install ultralytics
 ```
 
-Install OpenCV (safe version):
+Install OpenCV:
 ```bash
 python3 -m pip install "opencv-python<=4.8.1.78" --user
 ```
@@ -48,12 +44,17 @@ Install PyTorch (CPU version):
 python3 -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
 ```
 
+Reinstall a compatible version (< 2.0) for `cv_bridge`:
+```bash
+python3 -m pip install "numpy<2.0" --user --upgrade
+```
+
 ---
 
 ### 3. User Interface Dependencies
 ```bash
 sudo apt install -y qtbase5-dev qtbase5-dev-tools qtchooser qt5-qmake
-sudo apt install ros-hubmle-ros-image-to-qimage
+sudo apt install ros-humble-ros-image-to-qimage
 ```
 
 ---
@@ -62,7 +63,7 @@ sudo apt install ros-hubmle-ros-image-to-qimage
 
 ### 1. Build the Workspace
 ```bash
-cd RS1-SEARCH-AND-RESCUE-ROBOT  # MUST be ran in the same directory the repository was cloned/downloaded into. 
+cd RS1-Search-and-Rescue-Robot  # MUST be ran in the same directory the repository was cloned/downloaded into. 
 colcon build --symlink-install
 source install/setup.bash
 ```
